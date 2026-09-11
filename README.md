@@ -80,7 +80,7 @@ turned into an `IKeyWrapper`, not on every subsequent Encrypt/Decrypt call.
 
 ```bash
 dotnet tool install --global HkdfGuard.Initializer
-hkdfguard-init /path/to/32-byte-key-file --material-identifier 7 --iterations 100000 --service-name my-service
+hkdfguard-init /path/to/32-byte-key-file --material-identifier 83 --iterations 214 --service-name my-service
 ```
 
 This reads the 32-byte plaintext file, protects it into a signed key blob using OS-native secure
@@ -89,7 +89,7 @@ material identifier/iterations to record for later use:
 
 ```
 Key protected successfully: /path/to/32-byte-key-file
-Record these to load this key later: --material-identifier 7 --iterations 100000
+Record these to load this key later: --material-identifier 83 --iterations 214
 ```
 
 ### 2. Build a `KeyRing`
@@ -105,7 +105,7 @@ var ring = new KeyRingBuilder()
         .WithCipher(new AesGcmCipher())
         .WithHash(new HmacSha256Hash()))
     .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
-    .AddKeyFile(version: 1, path: "/path/to/32-byte-key-file", materialIdentifier: 7, iterations: 100000)
+    .AddKeyFile(version: 1, path: "/path/to/32-byte-key-file", materialIdentifier: 83, iterations: 214)
     .Build();
 ```
 
@@ -116,7 +116,7 @@ Or from configuration (e.g. `appsettings.json`) via `HkdfGuard.Options`:
   "HkdfGuard": {
     "ServiceName": "my-service",
     "KeyFiles": [
-      { "Version": 1, "Path": "/path/to/32-byte-key-file", "MaterialIdentifier": 7, "Iterations": 100000 }
+      { "Version": 1, "Path": "/path/to/32-byte-key-file", "MaterialIdentifier": 83, "Iterations": 214 }
     ]
   }
 }
@@ -161,8 +161,8 @@ var keySpec = new CryptoRecipeBuilder()
     .WithKeyDerivation(new Pbkdf2KeyDerivationFunction(KeyInputStorageFactory.Create("my-service")))
     .WithCipher(new AesGcmCipher())
     .WithHash(new HmacSha256Hash())
-    .WithMaterialIdentifier(1)
-    .WithIterations(100000)
+    .WithMaterialIdentifier(41)
+    .WithIterations(176)
     .Build();
 
 IDataProtectionKey ephemeralKey = new EphemeralDataProtectionKey(

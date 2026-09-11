@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\HkdfGuard.Abstractions\HkdfGuard.Abstractions.csproj" />
+    <ProjectReference Include="..\HkdfGuard.Core\HkdfGuard.Core.csproj" />
+    <ProjectReference Include="..\HkdfGuard.Cache\HkdfGuard.Cache.csproj" />
+    <ProjectReference Include="..\HkdfGuard.DataProtectionKey\HkdfGuard.DataProtectionKey.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

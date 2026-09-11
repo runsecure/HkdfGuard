@@ -182,6 +182,79 @@ public class HkdfGuardKeyRingFactoryTests
     }
 
     [Fact]
+    public void Build_WithEphemeralKey_ProducesWorkingKeyRing()
+    {
+        var storage = new InMemoryKeyInputStorage();
+        var options = new HkdfGuardOptions
+        {
+            ServiceName = ServiceName,
+            EphemeralKeys = { new EphemeralKeyOptions { Version = 1, MaterialIdentifier = 1, Iterations = 1 } }
+        };
+
+        var ring = new HkdfGuardKeyRingFactory(CreateInMemoryRegistry(storage)).Build(options);
+
+        var protector = ring.CreateProtector("cookie-auth");
+        var formatted = protector.Encrypt("hello from an ephemeral key".AsSpan());
+        Span<char> result = new char[protector.GetMaxDecryptedLength(formatted.AsSpan())];
+        var written = protector.Decrypt(formatted.AsSpan(), result);
+
+        Assert.Equal("hello from an ephemeral key", new string(result[..written]));
+    }
+
+    [Fact]
+    public void Build_WithKeyFileAndHigherVersionEphemeralKey_EphemeralBecomesCurrent()
+    {
+        using var tempDir = new TempDirectory();
+        var storage = new InMemoryKeyInputStorage();
+        const int materialIdentifier = 11, iterations = 1;
+
+        var spec = BuildSpec(storage, materialIdentifier, iterations);
+        var path = ProtectKeyFile(tempDir, "v1.key", spec);
+
+        var options = new HkdfGuardOptions
+        {
+            ServiceName = ServiceName,
+            KeyFiles = { new KeyFileOptions { Version = 1, Path = path, MaterialIdentifier = materialIdentifier, Iterations = iterations } },
+            EphemeralKeys = { new EphemeralKeyOptions { Version = 2, MaterialIdentifier = 12, Iterations = 1 } }
+        };
+
+        var ring = new HkdfGuardKeyRingFactory(CreateInMemoryRegistry(storage)).Build(options);
+
+        Assert.Equal(2, ring.CurrentVersion);
+    }
+
+    [Fact]
+    public void Build_WithUnknownKeyProtectorFactoryName_ThrowsNotSupportedException()
+    {
+        var options = new HkdfGuardOptions
+        {
+            ServiceName = ServiceName,
+            KeyProtectorFactory = "NotARealProtector",
+            EphemeralKeys = { new EphemeralKeyOptions { Version = 1, MaterialIdentifier = 1, Iterations = 1 } }
+        };
+
+        var ex = Assert.Throws<NotSupportedException>(() => new HkdfGuardKeyRingFactory().Build(options));
+        Assert.Contains("NotARealProtector", ex.Message);
+    }
+
+    [Fact]
+    public void Build_WithNoEphemeralKeys_NeverResolvesKeyProtectorFactory()
+    {
+        // KeyProtectorFactory defaults to "Default", which is always registered - if Build ever
+        // resolved it unconditionally, this would still pass. Configuring an unknown name proves
+        // it's only resolved when EphemeralKeys is actually non-empty.
+        var options = new HkdfGuardOptions
+        {
+            ServiceName = ServiceName,
+            KeyProtectorFactory = "NotARealProtector"
+        };
+
+        var ring = new HkdfGuardKeyRingFactory().Build(options);
+
+        Assert.Throws<InvalidOperationException>(() => ring.CurrentVersion);
+    }
+
+    [Fact]
     public void Build_WithDefaultConstructor_ResolvesBuiltInComponentsWithoutTouchingAnyFile()
     {
         // No KeyFiles registered, so KeyRingBuilder never reads a file or derives a key - this

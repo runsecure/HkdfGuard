@@ -12,13 +12,18 @@ namespace HkdfGuard.DataProtectionKey.KeyTracking;
 /// file is independently protected (see HkdfGuard.Initializer), with its own
 /// MaterialIdentifier and Iterations, and is validated and minted into its own IKeyWrapper when
 /// Build runs. Nothing here ever holds a version's key unwrapped - each IDataProtectionKey
-/// derives/reveals it fresh on every operation.
+/// derives/reveals it fresh on every operation. AddEphemeralKey registers a version whose own key
+/// material is instead generated fresh in memory on first use (see EphemeralDataProtectionKey) -
+/// requires WithKeyProtectorFactory too, since protecting that freshly generated key is a
+/// separate concern from revealing an already-protected one.
 /// </summary>
 public sealed class KeyRingBuilder
 {
     private readonly List<(int Version, string Path, int MaterialIdentifier, int Iterations)> _versionFiles = [];
+    private readonly List<(int Version, int MaterialIdentifier, int Iterations)> _ephemeralVersions = [];
     private ICryptoRecipeBuilder? _recipeBuilder;
     private IKeyWrapperFactory? _keyWrapperFactory;
+    private IKeyProtectorFactory? _keyProtectorFactory;
     private IEncryptedFormatProvider _formatProvider = new DefaultFormatProvider();
     private KeyBlobSpec _blobSpec = new(saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
 
@@ -39,6 +44,16 @@ public sealed class KeyRingBuilder
     public KeyRingBuilder WithKeyWrapperFactory(IKeyWrapperFactory keyWrapperFactory)
     {
         _keyWrapperFactory = keyWrapperFactory;
+        return this;
+    }
+
+    /// <summary>
+    /// Supplies the IKeyProtectorFactory used to protect each ephemeral key's freshly generated
+    /// material. Only required when AddEphemeralKey is used at least once.
+    /// </summary>
+    public KeyRingBuilder WithKeyProtectorFactory(IKeyProtectorFactory keyProtectorFactory)
+    {
+        _keyProtectorFactory = keyProtectorFactory;
         return this;
     }
 
@@ -82,9 +97,27 @@ public sealed class KeyRingBuilder
     }
 
     /// <summary>
-    /// Reads, verifies, and wraps each registered key file, returning a populated KeyRing.
+    /// Registers a version whose own key material is generated fresh in memory the first time
+    /// it's used, and never written to or read from disk (see EphemeralDataProtectionKey).
+    /// materialIdentifier/iterations still govern the key-derivation input this version pulls
+    /// from the same IKeyInputStorage a durable, file-backed version would use. The highest
+    /// version registered across every AddKeyFile/AddEphemeralKey call intrinsically becomes the
+    /// built KeyRing's CurrentVersion.
     /// </summary>
-    /// <exception cref="InvalidOperationException">No crypto recipe or key wrapper factory was configured</exception>
+    /// <param name="version">The KeyRing version to register this key under</param>
+    /// <param name="materialIdentifier">The material identifier this version's key-derivation input should use</param>
+    /// <param name="iterations">The iteration count this version's key-derivation input should use</param>
+    public KeyRingBuilder AddEphemeralKey(int version, int materialIdentifier, int iterations)
+    {
+        _ephemeralVersions.Add((version, materialIdentifier, iterations));
+        return this;
+    }
+
+    /// <summary>
+    /// Reads, verifies, and wraps each registered key file - and mints each registered ephemeral
+    /// key - returning a populated KeyRing.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">No crypto recipe or key wrapper factory was configured, or an ephemeral key was registered without a key protector factory</exception>
     /// <exception cref="CryptographicException">A key file failed signature verification</exception>
     public KeyRing Build()
     {
@@ -93,6 +126,9 @@ public sealed class KeyRingBuilder
 
         if (_keyWrapperFactory is null)
             throw new InvalidOperationException("A key wrapper factory is required - call WithKeyWrapperFactory first.");
+
+        if (_ephemeralVersions.Count > 0 && _keyProtectorFactory is null)
+            throw new InvalidOperationException("A key protector factory is required to register an ephemeral key - call WithKeyProtectorFactory first.");
 
         var ring = new KeyRing(_formatProvider);
         foreach (var (version, path, materialIdentifier, iterations) in _versionFiles)
@@ -108,6 +144,16 @@ public sealed class KeyRingBuilder
 
             var keyWrapper = _keyWrapperFactory.Create(keySpec, blob!);
             ring.Add(version, new KeyWrappedDataProtectionKey(keyWrapper, keySpec.Cipher));
+        }
+
+        foreach (var (version, materialIdentifier, iterations) in _ephemeralVersions)
+        {
+            var keySpec = _recipeBuilder
+                .WithMaterialIdentifier(materialIdentifier)
+                .WithIterations(iterations)
+                .Build();
+
+            ring.Add(version, new EphemeralDataProtectionKey(keySpec, _keyWrapperFactory, _keyProtectorFactory!, _blobSpec));
         }
 
         return ring;

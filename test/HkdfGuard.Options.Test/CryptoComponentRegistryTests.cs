@@ -153,6 +153,48 @@ public class CryptoComponentRegistryTests
     }
 
     [Fact]
+    public void CreateKeyProtectorFactory_BuiltInDefault_ResolvesCorrectType()
+    {
+        var registry = new CryptoComponentRegistry();
+
+        Assert.IsType<KeyProtectorFactory>(registry.CreateKeyProtectorFactory("Default"));
+    }
+
+    [Fact]
+    public void CreateKeyProtectorFactory_UnknownName_ThrowsNotSupportedException()
+    {
+        var registry = new CryptoComponentRegistry();
+
+        var ex = Assert.Throws<NotSupportedException>(() => registry.CreateKeyProtectorFactory("DoesNotExist"));
+        Assert.Contains("DoesNotExist", ex.Message);
+        Assert.Contains("Default", ex.Message);
+    }
+
+    [Fact]
+    public void RegisterKeyProtectorFactory_WithExistingBuiltInName_ReplacesIt()
+    {
+        var registry = new CryptoComponentRegistry();
+        IKeyProtectorFactory replacement = new KeyProtectorFactory();
+
+        registry.RegisterKeyProtectorFactory("Default", () => replacement);
+
+        Assert.Same(replacement, registry.CreateKeyProtectorFactory("Default"));
+    }
+
+    [Fact]
+    public void RegisterKeyProtectorFactory_WithNewName_AddsOptionAlongsideBuiltIns()
+    {
+        var registry = new CryptoComponentRegistry();
+        registry.RegisterKeyProtectorFactory("MyCustomProtector", () => new KeyProtectorFactory());
+
+        var custom = registry.CreateKeyProtectorFactory("MyCustomProtector");
+        var builtIn = registry.CreateKeyProtectorFactory("Default");
+
+        Assert.IsType<KeyProtectorFactory>(custom);
+        Assert.IsType<KeyProtectorFactory>(builtIn);
+    }
+
+    [Fact]
     public void UnknownNameException_ListsCurrentlyRegisteredNames_NotJustBuiltIns()
     {
         var registry = new CryptoComponentRegistry();

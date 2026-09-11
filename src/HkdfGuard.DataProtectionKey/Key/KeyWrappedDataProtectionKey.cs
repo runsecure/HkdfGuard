@@ -17,12 +17,17 @@ public class KeyWrappedDataProtectionKey(
 {
     private const int KeyLength = 32;
 
-    /// <inheritdoc/>
-    public int Encrypt(Span<byte> plaintext, Span<byte> result)
-        => Encrypt(plaintext, AdditionalAuthData.Empty, result);
+    // ISymmetricCipher is cipher-agnostic, so its exact ciphertext overhead (nonce/tag for
+    // AES-GCM, potentially something else for a swapped-in cipher) isn't known here - over-
+    // allocate generously and trim to what it actually wrote.
+    private const int MaxCipherOverhead = 64;
 
     /// <inheritdoc/>
-    public int Encrypt(Span<byte> plaintext, IAdditionalAuthData aad, Span<byte> result)
+    public byte[] Encrypt(Span<byte> plaintext)
+        => Encrypt(plaintext, AdditionalAuthData.Empty);
+
+    /// <inheritdoc/>
+    public byte[] Encrypt(Span<byte> plaintext, IAdditionalAuthData aad)
     {
         using var activity = DataProtectionDiagnostics.ActivitySource.StartActivity("KeyWrappedDataProtectionKey.Encrypt");
         if (DataProtectionDiagnostics.EnableSensitiveLogging)
@@ -33,7 +38,10 @@ public class KeyWrappedDataProtectionKey(
         try
         {
             keyWrapper.Decrypt(key);
-            return cipher.Encrypt(key, plaintext, aad, result);
+
+            var buffer = new byte[plaintext.Length + MaxCipherOverhead];
+            var written = cipher.Encrypt(key, plaintext, aad, buffer);
+            return buffer.AsSpan(0, written).ToArray();
         }
         catch (Exception ex)
         {

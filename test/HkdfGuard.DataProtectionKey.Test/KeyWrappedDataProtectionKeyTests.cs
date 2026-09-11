@@ -22,10 +22,9 @@ public class KeyWrappedDataProtectionKeyTests
         var plaintext = "top secret"u8.ToArray();
         // AesGcmCipher.Encrypt zeroes the plaintext span it's given as a side effect.
         var expected = (byte[])plaintext.Clone();
-        var encrypted = new byte[plaintext.Length + 12 + 16];
 
-        var written = dataProtectionKey.Encrypt(plaintext, encrypted);
-        Assert.Equal(encrypted.Length, written);
+        var encrypted = dataProtectionKey.Encrypt(plaintext);
+        Assert.Equal(expected.Length + 12 + 16, encrypted.Length);
 
         var decrypted = new byte[expected.Length];
         var decryptedLength = dataProtectionKey.Decrypt(encrypted, decrypted);
@@ -41,9 +40,8 @@ public class KeyWrappedDataProtectionKeyTests
         var plaintext = "top secret"u8.ToArray();
         var expected = (byte[])plaintext.Clone();
         var aad = new AdditionalAuthData("context".AsSpan());
-        var encrypted = new byte[plaintext.Length + 12 + 16];
 
-        dataProtectionKey.Encrypt(plaintext, aad, encrypted);
+        var encrypted = dataProtectionKey.Encrypt(plaintext, aad);
 
         var decrypted = new byte[expected.Length];
         var decryptedLength = dataProtectionKey.Decrypt(encrypted, aad, decrypted);
@@ -56,8 +54,7 @@ public class KeyWrappedDataProtectionKeyTests
     {
         var dataProtectionKey = CreateKey(out _);
         var plaintext = "top secret"u8.ToArray();
-        var encrypted = new byte[plaintext.Length + 12 + 16];
-        dataProtectionKey.Encrypt(plaintext, new AdditionalAuthData("context-a".AsSpan()), encrypted);
+        var encrypted = dataProtectionKey.Encrypt(plaintext, new AdditionalAuthData("context-a".AsSpan()));
 
         var result = new byte[plaintext.Length];
         Assert.Throws<AuthenticationTagMismatchException>(() =>
@@ -72,9 +69,8 @@ public class KeyWrappedDataProtectionKeyTests
         var dataProtectionKey = CreateKey(out _);
         var plaintext = "top secret"u8.ToArray();
         var expected = (byte[])plaintext.Clone();
-        var encrypted = new byte[plaintext.Length + 12 + 16];
 
-        dataProtectionKey.Encrypt(plaintext, encrypted);
+        var encrypted = dataProtectionKey.Encrypt(plaintext);
         var decrypted = new byte[expected.Length];
         var decryptedLength = dataProtectionKey.Decrypt(encrypted, decrypted);
 
@@ -82,26 +78,47 @@ public class KeyWrappedDataProtectionKeyTests
     }
 
     [Fact]
-    public void Encrypt_WithTooSmallResultBuffer_ThrowsArgumentException()
+    public void Encrypt_ReturnsExactlySizedArray()
     {
         var dataProtectionKey = CreateKey(out _);
-        var plaintext = "top secret"u8.ToArray();
-        var tooSmall = new byte[plaintext.Length]; // missing AES-GCM's 12-byte nonce + 16-byte tag overhead
+        var plaintext = "a longer plaintext value to encrypt"u8.ToArray();
+        var expectedLength = plaintext.Length + 12 + 16; // AES-GCM nonce + tag overhead
 
-        Assert.Throws<ArgumentException>(() => dataProtectionKey.Encrypt(plaintext, tooSmall));
+        var encrypted = dataProtectionKey.Encrypt(plaintext);
+
+        Assert.Equal(expectedLength, encrypted.Length);
+    }
+
+    [Fact]
+    public void Encrypt_WhenKeyWrapperFails_RecordsExceptionAndThrows()
+    {
+        var wrapper = new FakeKeyWrapper(RandomNumberGenerator.GetBytes(32))
+        {
+            ThrowOnDecrypt = new InvalidOperationException("key reveal failed")
+        };
+        var dataProtectionKey = new KeyWrappedDataProtectionKey(wrapper, new AesGcmCipher());
+
+        Assert.Throws<InvalidOperationException>(() => dataProtectionKey.Encrypt("top secret"u8.ToArray()));
+    }
+
+    [Fact]
+    public void Decrypt_WhenKeyWrapperFails_RecordsExceptionAndThrows()
+    {
+        var wrapper = new FakeKeyWrapper(RandomNumberGenerator.GetBytes(32));
+        var dataProtectionKey = new KeyWrappedDataProtectionKey(wrapper, new AesGcmCipher());
+        var encrypted = dataProtectionKey.Encrypt("top secret"u8.ToArray());
+
+        wrapper.ThrowOnDecrypt = new InvalidOperationException("key reveal failed");
+
+        Assert.Throws<InvalidOperationException>(() => dataProtectionKey.Decrypt(encrypted, new byte[16]));
     }
 
     [Fact]
     public void EncryptAndDecrypt_EachRevealKeyFreshOnEveryCall()
     {
         var dataProtectionKey = CreateKey(out var wrapper);
-        var plaintext1 = "one"u8.ToArray();
-        var encrypted1 = new byte[plaintext1.Length + 12 + 16];
-        dataProtectionKey.Encrypt(plaintext1, encrypted1);
-
-        var plaintext2 = "two"u8.ToArray();
-        var encrypted2 = new byte[plaintext2.Length + 12 + 16];
-        dataProtectionKey.Encrypt(plaintext2, encrypted2);
+        var encrypted1 = dataProtectionKey.Encrypt("one"u8.ToArray());
+        var encrypted2 = dataProtectionKey.Encrypt("two"u8.ToArray());
 
         dataProtectionKey.Decrypt(encrypted1, new byte[3]);
 

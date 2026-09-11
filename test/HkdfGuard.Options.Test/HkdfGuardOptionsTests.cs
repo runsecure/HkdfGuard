@@ -12,7 +12,9 @@ public class HkdfGuardOptionsTests
         Assert.Equal("AesGcm", options.Cipher);
         Assert.Equal("HmacSha256", options.Hash);
         Assert.Equal("Hkdf", options.KeyWrapperFactory);
+        Assert.Equal("Default", options.KeyProtectorFactory);
         Assert.Empty(options.KeyFiles);
+        Assert.Empty(options.EphemeralKeys);
     }
 
     [Fact]
@@ -24,7 +26,8 @@ public class HkdfGuardOptionsTests
             KeyDerivation = "Custom",
             Cipher = "Custom",
             Hash = "Custom",
-            KeyWrapperFactory = "Custom"
+            KeyWrapperFactory = "Custom",
+            KeyProtectorFactory = "Custom"
         };
 
         Assert.Equal("svc", options.ServiceName);
@@ -32,6 +35,7 @@ public class HkdfGuardOptionsTests
         Assert.Equal("Custom", options.Cipher);
         Assert.Equal("Custom", options.Hash);
         Assert.Equal("Custom", options.KeyWrapperFactory);
+        Assert.Equal("Custom", options.KeyProtectorFactory);
     }
 
     [Fact]
@@ -60,5 +64,32 @@ public class HkdfGuardOptionsTests
         Assert.Equal(2, options.KeyFiles.Count);
         Assert.Equal(1, options.KeyFiles[0].Version);
         Assert.Equal("/keys/v2.key", options.KeyFiles[1].Path);
+    }
+
+    [Fact]
+    public void EphemeralKeyOptions_Defaults()
+    {
+        var ephemeralKey = new EphemeralKeyOptions();
+
+        Assert.Equal(0, ephemeralKey.Version);
+        Assert.Equal(0, ephemeralKey.MaterialIdentifier);
+        Assert.Equal(0, ephemeralKey.Iterations);
+    }
+
+    [Fact]
+    public void EphemeralKeys_CanBePopulated()
+    {
+        var options = new HkdfGuardOptions
+        {
+            EphemeralKeys =
+            {
+                new EphemeralKeyOptions { Version = 1, MaterialIdentifier = 5, Iterations = 2 },
+                new EphemeralKeyOptions { Version = 2, MaterialIdentifier = 9, Iterations = 4 }
+            }
+        };
+
+        Assert.Equal(2, options.EphemeralKeys.Count);
+        Assert.Equal(1, options.EphemeralKeys[0].Version);
+        Assert.Equal(9, options.EphemeralKeys[1].MaterialIdentifier);
     }
 }

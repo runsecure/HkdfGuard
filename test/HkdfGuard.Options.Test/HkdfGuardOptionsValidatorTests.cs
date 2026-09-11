@@ -159,6 +159,117 @@ public class HkdfGuardOptionsValidatorTests
     }
 
     [Fact]
+    public void Validate_WithValidEphemeralKey_Succeeds()
+    {
+        var options = new HkdfGuardOptions
+        {
+            ServiceName = "svc",
+            EphemeralKeys = { new EphemeralKeyOptions { Version = 1, MaterialIdentifier = 1, Iterations = 1 } }
+        };
+
+        var result = _validator.Validate(null, options);
+
+        Assert.False(result.Failed);
+    }
+
+    [Fact]
+    public void Validate_WithNoEphemeralKeys_StillSucceeds()
+    {
+        var result = _validator.Validate(null, CreateValidOptions());
+
+        Assert.False(result.Failed);
+    }
+
+    [Fact]
+    public void Validate_WithNullEphemeralKeys_Fails()
+    {
+        var options = CreateValidOptions();
+        options.EphemeralKeys = null!;
+
+        var result = _validator.Validate(null, options);
+
+        Assert.True(result.Failed);
+        Assert.Contains(nameof(HkdfGuardOptions.EphemeralKeys), result.FailureMessage);
+    }
+
+    [Fact]
+    public void Validate_WithEphemeralKeyAndMissingKeyProtectorFactory_Fails()
+    {
+        var options = CreateValidOptions();
+        options.KeyProtectorFactory = "";
+        options.EphemeralKeys.Add(new EphemeralKeyOptions { Version = 2, MaterialIdentifier = 1, Iterations = 1 });
+
+        var result = _validator.Validate(null, options);
+
+        Assert.True(result.Failed);
+        Assert.Contains(nameof(HkdfGuardOptions.KeyProtectorFactory), result.FailureMessage);
+    }
+
+    [Fact]
+    public void Validate_WithMissingKeyProtectorFactoryButNoEphemeralKeys_Succeeds()
+    {
+        var options = CreateValidOptions();
+        options.KeyProtectorFactory = "";
+
+        var result = _validator.Validate(null, options);
+
+        Assert.False(result.Failed);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Validate_WithNonPositiveEphemeralMaterialIdentifier_Fails(int materialIdentifier)
+    {
+        var options = CreateValidOptions();
+        options.EphemeralKeys.Add(new EphemeralKeyOptions { Version = 2, MaterialIdentifier = materialIdentifier, Iterations = 1 });
+
+        var result = _validator.Validate(null, options);
+
+        Assert.True(result.Failed);
+        Assert.Contains(nameof(EphemeralKeyOptions.MaterialIdentifier), result.FailureMessage);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Validate_WithNonPositiveEphemeralIterations_Fails(int iterations)
+    {
+        var options = CreateValidOptions();
+        options.EphemeralKeys.Add(new EphemeralKeyOptions { Version = 2, MaterialIdentifier = 1, Iterations = iterations });
+
+        var result = _validator.Validate(null, options);
+
+        Assert.True(result.Failed);
+        Assert.Contains(nameof(EphemeralKeyOptions.Iterations), result.FailureMessage);
+    }
+
+    [Fact]
+    public void Validate_WithDuplicateEphemeralKeyVersions_Fails()
+    {
+        var options = CreateValidOptions();
+        options.EphemeralKeys.Add(new EphemeralKeyOptions { Version = 2, MaterialIdentifier = 1, Iterations = 1 });
+        options.EphemeralKeys.Add(new EphemeralKeyOptions { Version = 2, MaterialIdentifier = 2, Iterations = 1 });
+
+        var result = _validator.Validate(null, options);
+
+        Assert.True(result.Failed);
+        Assert.Contains(nameof(EphemeralKeyOptions.Version), result.FailureMessage);
+    }
+
+    [Fact]
+    public void Validate_WithEphemeralKeyReusingKeyFileVersion_Fails()
+    {
+        var options = CreateValidOptions();
+        options.EphemeralKeys.Add(new EphemeralKeyOptions { Version = 1, MaterialIdentifier = 1, Iterations = 1 });
+
+        var result = _validator.Validate(null, options);
+
+        Assert.True(result.Failed);
+        Assert.Contains(nameof(EphemeralKeyOptions.Version), result.FailureMessage);
+    }
+
+    [Fact]
     public void Validate_WithMultipleProblems_ReportsAllFailuresNotJustTheFirst()
     {
         var options = new HkdfGuardOptions

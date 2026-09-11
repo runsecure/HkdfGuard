@@ -38,9 +38,23 @@ public sealed class HkdfGuardOptions
     public string KeyWrapperFactory { get; set; } = "Hkdf";
 
     /// <summary>
+    /// Selects the IKeyProtectorFactory implementation via CryptoComponentRegistry, used only to
+    /// protect an ephemeral key's own freshly generated material - unused (and not validated)
+    /// unless EphemeralKeys is non-empty. Defaults to "Default".
+    /// </summary>
+    public string KeyProtectorFactory { get; set; } = "Default";
+
+    /// <summary>
     /// Every independently-protected key file to register into the built KeyRing.
     /// </summary>
     public List<KeyFileOptions> KeyFiles { get; set; } = [];
+
+    /// <summary>
+    /// Every ephemeral key (its own material generated fresh in memory on first use, never
+    /// written to or read from disk - see EphemeralDataProtectionKey) to register into the built
+    /// KeyRing.
+    /// </summary>
+    public List<EphemeralKeyOptions> EphemeralKeys { get; set; } = [];
 }
 
 /// <summary>
@@ -68,6 +82,30 @@ public sealed class KeyFileOptions
     /// <summary>
     /// The iteration count this key file was protected with - printed by
     /// HkdfGuard.Initializer when the file was created.
+    /// </summary>
+    public int Iterations { get; set; }
+}
+
+/// <summary>
+/// One entry for KeyRingBuilder.AddEphemeralKey - a key whose own material is generated fresh in
+/// memory on first use and never written to or read from disk, with its own
+/// MaterialIdentifier/Iterations governing the key-derivation input it still pulls from the same
+/// IKeyInputStorage a durable key would use.
+/// </summary>
+public sealed class EphemeralKeyOptions
+{
+    /// <summary>
+    /// The KeyRing version to register this key under.
+    /// </summary>
+    public int Version { get; set; }
+
+    /// <summary>
+    /// The material identifier this version's key-derivation input should use.
+    /// </summary>
+    public int MaterialIdentifier { get; set; }
+
+    /// <summary>
+    /// The iteration count this version's key-derivation input should use.
     /// </summary>
     public int Iterations { get; set; }
 }

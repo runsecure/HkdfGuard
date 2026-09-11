@@ -52,12 +52,12 @@ public sealed class EphemeralDataProtectionKey(
     }
 
     /// <inheritdoc/>
-    public int Encrypt(Span<byte> plaintext, Span<byte> result)
-        => _inner.Value.Encrypt(plaintext, result);
+    public byte[] Encrypt(Span<byte> plaintext)
+        => _inner.Value.Encrypt(plaintext);
 
     /// <inheritdoc/>
-    public int Encrypt(Span<byte> plaintext, IAdditionalAuthData aad, Span<byte> result)
-        => _inner.Value.Encrypt(plaintext, aad, result);
+    public byte[] Encrypt(Span<byte> plaintext, IAdditionalAuthData aad)
+        => _inner.Value.Encrypt(plaintext, aad);
 
     /// <inheritdoc/>
     public int Decrypt(ReadOnlySpan<byte> ciphertext, Span<byte> result)

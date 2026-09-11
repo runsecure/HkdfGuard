@@ -194,6 +194,104 @@ public class KeyRingBuilderTests
     }
 
     [Fact]
+    public void Build_WithEphemeralKeyWithoutKeyProtectorFactory_ThrowsInvalidOperationException()
+    {
+        var storage = new InMemoryKeyInputStorage();
+
+        var builder = new KeyRingBuilder()
+            .WithCryptoRecipe(CreateRecipe(storage))
+            .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
+            .AddEphemeralKey(1, materialIdentifier: 1, iterations: 1);
+
+        Assert.Throws<InvalidOperationException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void Build_WithEphemeralKey_ProducesWorkingKeyRing()
+    {
+        var storage = new InMemoryKeyInputStorage();
+
+        var ring = new KeyRingBuilder()
+            .WithCryptoRecipe(CreateRecipe(storage))
+            .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
+            .WithKeyProtectorFactory(new KeyProtectorFactory())
+            .AddEphemeralKey(1, materialIdentifier: 1, iterations: 1)
+            .Build();
+
+        var protector = ring.CreateProtector("purpose");
+        var formatted = protector.Encrypt("hello".AsSpan());
+        Span<char> result = new char[protector.GetMaxDecryptedLength(formatted.AsSpan())];
+        var written = protector.Decrypt(formatted.AsSpan(), result);
+
+        Assert.Equal("hello", new string(result[..written]));
+    }
+
+    [Fact]
+    public void Build_WithKeyFileAndHigherVersionEphemeralKey_EphemeralBecomesCurrent()
+    {
+        using var tempDir = new TempDirectory();
+        var storage = new InMemoryKeyInputStorage();
+
+        var spec1 = BuildSpec(storage, materialIdentifier: 1, iterations: 1);
+        var path1 = ProtectKeyFile(tempDir, "v1.key", spec1);
+
+        var ring = new KeyRingBuilder()
+            .WithCryptoRecipe(CreateRecipe(storage))
+            .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
+            .WithKeyProtectorFactory(new KeyProtectorFactory())
+            .AddKeyFile(1, path1, materialIdentifier: 1, iterations: 1)
+            .AddEphemeralKey(2, materialIdentifier: 2, iterations: 1)
+            .Build();
+
+        Assert.Equal(2, ring.CurrentVersion);
+
+        var formatted = ring.CreateProtector("purpose").Encrypt("newest key".AsSpan());
+        Assert.Contains("::v2::", formatted);
+    }
+
+    [Fact]
+    public void Build_WithEphemeralKeyReusingKeyFileVersion_ThrowsArgumentException()
+    {
+        using var tempDir = new TempDirectory();
+        var storage = new InMemoryKeyInputStorage();
+
+        var spec1 = BuildSpec(storage, materialIdentifier: 1, iterations: 1);
+        var path1 = ProtectKeyFile(tempDir, "v1.key", spec1);
+
+        var builder = new KeyRingBuilder()
+            .WithCryptoRecipe(CreateRecipe(storage))
+            .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
+            .WithKeyProtectorFactory(new KeyProtectorFactory())
+            .AddKeyFile(1, path1, materialIdentifier: 1, iterations: 1)
+            .AddEphemeralKey(1, materialIdentifier: 2, iterations: 1);
+
+        Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void Build_WithMultipleEphemeralKeys_EachHasIndependentMaterial()
+    {
+        var storage = new InMemoryKeyInputStorage();
+
+        var ring = new KeyRingBuilder()
+            .WithCryptoRecipe(CreateRecipe(storage))
+            .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
+            .WithKeyProtectorFactory(new KeyProtectorFactory())
+            .AddEphemeralKey(1, materialIdentifier: 1, iterations: 1)
+            .AddEphemeralKey(2, materialIdentifier: 2, iterations: 1)
+            .Build();
+
+        var formattedV2 = ring.CreateProtector("purpose").Encrypt("hello".AsSpan());
+        Assert.Contains("::v2::", formattedV2);
+
+        var v1Key = ring.Get(1);
+        var v2Key = ring.Get(2);
+        var encrypted1 = v1Key.Encrypt("hello"u8.ToArray());
+        var result = new byte[16];
+        Assert.Throws<AuthenticationTagMismatchException>(() => v2Key.Decrypt(encrypted1, result));
+    }
+
+    [Fact]
     public void Build_WithCustomFormatProvider_UsesItForCreateProtector()
     {
         using var tempDir = new TempDirectory();

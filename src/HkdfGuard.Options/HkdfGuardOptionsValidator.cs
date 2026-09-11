@@ -36,13 +36,16 @@ public sealed class HkdfGuardOptionsValidator : IValidateOptions<HkdfGuardOption
         if (string.IsNullOrWhiteSpace(options.KeyWrapperFactory))
             failures.Add($"{nameof(HkdfGuardOptions.KeyWrapperFactory)} is required.");
 
+        // Shared across KeyFiles and EphemeralKeys - KeyRing.Add rejects a duplicate version
+        // regardless of which source registered it first.
+        var seenVersions = new HashSet<int>();
+
         if (options.KeyFiles is null)
         {
             failures.Add($"{nameof(HkdfGuardOptions.KeyFiles)} must not be null.");
         }
         else
         {
-            var seenVersions = new HashSet<int>();
             for (var i = 0; i < options.KeyFiles.Count; i++)
             {
                 var keyFile = options.KeyFiles[i];
@@ -58,7 +61,32 @@ public sealed class HkdfGuardOptionsValidator : IValidateOptions<HkdfGuardOption
                     failures.Add($"{prefix}.{nameof(KeyFileOptions.Iterations)} ({keyFile.Iterations}) must be a positive integer.");
 
                 if (!seenVersions.Add(keyFile.Version))
-                    failures.Add($"{prefix}.{nameof(KeyFileOptions.Version)} ({keyFile.Version}) is registered by more than one key file.");
+                    failures.Add($"{prefix}.{nameof(KeyFileOptions.Version)} ({keyFile.Version}) is registered by more than one key.");
+            }
+        }
+
+        if (options.EphemeralKeys is null)
+        {
+            failures.Add($"{nameof(HkdfGuardOptions.EphemeralKeys)} must not be null.");
+        }
+        else
+        {
+            if (options.EphemeralKeys.Count > 0 && string.IsNullOrWhiteSpace(options.KeyProtectorFactory))
+                failures.Add($"{nameof(HkdfGuardOptions.KeyProtectorFactory)} is required when {nameof(HkdfGuardOptions.EphemeralKeys)} is non-empty.");
+
+            for (var i = 0; i < options.EphemeralKeys.Count; i++)
+            {
+                var ephemeralKey = options.EphemeralKeys[i];
+                var prefix = $"{nameof(HkdfGuardOptions.EphemeralKeys)}[{i}]";
+
+                if (ephemeralKey.MaterialIdentifier < 1)
+                    failures.Add($"{prefix}.{nameof(EphemeralKeyOptions.MaterialIdentifier)} ({ephemeralKey.MaterialIdentifier}) must be a positive integer.");
+
+                if (ephemeralKey.Iterations < 1)
+                    failures.Add($"{prefix}.{nameof(EphemeralKeyOptions.Iterations)} ({ephemeralKey.Iterations}) must be a positive integer.");
+
+                if (!seenVersions.Add(ephemeralKey.Version))
+                    failures.Add($"{prefix}.{nameof(EphemeralKeyOptions.Version)} ({ephemeralKey.Version}) is registered by more than one key.");
             }
         }
 

@@ -38,6 +38,14 @@ public sealed class HkdfGuardKeyRingFactory(CryptoComponentRegistry? registry = 
         foreach (var keyFile in options.KeyFiles)
             keyRingBuilder.AddKeyFile(keyFile.Version, keyFile.Path, keyFile.MaterialIdentifier, keyFile.Iterations);
 
+        if (options.EphemeralKeys.Count > 0)
+        {
+            keyRingBuilder.WithKeyProtectorFactory(_registry.CreateKeyProtectorFactory(options.KeyProtectorFactory));
+
+            foreach (var ephemeralKey in options.EphemeralKeys)
+                keyRingBuilder.AddEphemeralKey(ephemeralKey.Version, ephemeralKey.MaterialIdentifier, ephemeralKey.Iterations);
+        }
+
         return keyRingBuilder.Build();
     }
 

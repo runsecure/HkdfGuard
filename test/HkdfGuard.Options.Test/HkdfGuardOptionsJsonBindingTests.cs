@@ -21,9 +21,13 @@ public class HkdfGuardOptionsJsonBindingTests
             "Cipher": "AesGcm",
             "Hash": "HmacSha256",
             "KeyWrapperFactory": "Hkdf",
+            "KeyProtectorFactory": "Default",
             "KeyFiles": [
               { "Version": 1, "Path": "/keys/v1.key", "MaterialIdentifier": 7, "Iterations": 3 },
               { "Version": 2, "Path": "/keys/v2.key", "MaterialIdentifier": 42, "Iterations": 9 }
+            ],
+            "EphemeralKeys": [
+              { "Version": 3, "MaterialIdentifier": 11, "Iterations": 5 }
             ]
           }
         }
@@ -58,6 +62,12 @@ public class HkdfGuardOptionsJsonBindingTests
         Assert.Equal("/keys/v2.key", options.KeyFiles[1].Path);
         Assert.Equal(42, options.KeyFiles[1].MaterialIdentifier);
         Assert.Equal(9, options.KeyFiles[1].Iterations);
+
+        Assert.Equal("Default", options.KeyProtectorFactory);
+        Assert.Single(options.EphemeralKeys);
+        Assert.Equal(3, options.EphemeralKeys[0].Version);
+        Assert.Equal(11, options.EphemeralKeys[0].MaterialIdentifier);
+        Assert.Equal(5, options.EphemeralKeys[0].Iterations);
     }
 
     [Fact]
@@ -82,7 +92,9 @@ public class HkdfGuardOptionsJsonBindingTests
         Assert.Equal("AesGcm", options.Cipher);
         Assert.Equal("HmacSha256", options.Hash);
         Assert.Equal("Hkdf", options.KeyWrapperFactory);
+        Assert.Equal("Default", options.KeyProtectorFactory);
         Assert.Empty(options.KeyFiles);
+        Assert.Empty(options.EphemeralKeys);
     }
 
     [Fact]
@@ -111,5 +123,7 @@ public class HkdfGuardOptionsJsonBindingTests
         Assert.Equal("my-service", options.Value.ServiceName);
         Assert.Equal(2, options.Value.KeyFiles.Count);
         Assert.Equal("/keys/v2.key", options.Value.KeyFiles[1].Path);
+        Assert.Single(options.Value.EphemeralKeys);
+        Assert.Equal(3, options.Value.EphemeralKeys[0].Version);
     }
 }

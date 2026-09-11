@@ -39,17 +39,13 @@ internal sealed class DataProtector(
             var plaintextBytes = new byte[Encoding.UTF8.GetByteCount(plaintext)];
             Encoding.UTF8.GetBytes(plaintext, plaintextBytes);
 
-            // IDataProtectionKey is opaque here, so the ciphertext length can't be computed
-            // exactly ahead of time - over-allocate for its nonce/tag overhead and trim to
-            // the bytes actually written below. plaintextBytes is zeroed as a side effect of
-            // the Encrypt call it's passed to.
-            var resultBuffer = new byte[plaintextBytes.Length + 64];
-            var written = key.Encrypt(plaintextBytes, _aad, resultBuffer);
+            // plaintextBytes is zeroed as a side effect of the Encrypt call it's passed to.
+            var encryptedBytes = key.Encrypt(plaintextBytes, _aad);
 
             return formatProvider.Format(new KeyTrackingValue
             {
                 KeyVersion = version,
-                Value = resultBuffer.AsSpan(0, written).ToArray()
+                Value = encryptedBytes
             });
         }
         catch (Exception ex)
