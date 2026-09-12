@@ -5,7 +5,7 @@ namespace HkdfGuard.Cache;
 /// <summary>
 /// Aggregates multiple IProtectedReadOnlyCache sources into a single read-only surface. Add
 /// registers a source and returns this same instance for fluent chaining (e.g.
-/// new ProtectedCacheCollection().Add(a).Add(b)). TryDecrypt/TryGetMaxDecryptedLength check each
+/// new ProtectedCacheCollection().Add(a).Add(b)). Decrypt/TryGetMaxDecryptedLength check each
 /// registered source in the order it was added, returning the first match. This never owns or
 /// writes any encrypted values of its own - Add here only registers a source, it never protects
 /// or stores a value - so mutation of actual cached values stays entirely a concern of whichever
@@ -28,22 +28,22 @@ public sealed class ProtectedCacheCollection : IProtectedReadOnlyCache
     }
 
     /// <inheritdoc/>
-    public bool TryDecrypt(string name, Span<byte> result, out int written)
+    public int Decrypt(string name, Span<byte> result)
     {
-        using var activity = CacheDiagnostics.ActivitySource.StartActivity("ProtectedCacheCollection.TryDecrypt");
+        using var activity = CacheDiagnostics.ActivitySource.StartActivity("ProtectedCacheCollection.Decrypt");
         if (CacheDiagnostics.EnableSensitiveLogging)
-            CacheDiagnostics.LogSensitiveOperation(activity, "ProtectedCacheCollection.TryDecrypt", ("name", name));
+            CacheDiagnostics.LogSensitiveOperation(activity, "ProtectedCacheCollection.Decrypt", ("name", name));
 
         try
         {
             foreach (var source in _sources)
             {
-                if (source.TryDecrypt(name, result, out written))
-                    return true;
+                var written = source.Decrypt(name, result);
+                if (written > 0)
+                    return written;
             }
 
-            written = 0;
-            return false;
+            return 0;
         }
         catch (Exception ex)
         {
@@ -53,22 +53,22 @@ public sealed class ProtectedCacheCollection : IProtectedReadOnlyCache
     }
 
     /// <inheritdoc/>
-    public bool TryDecrypt(string name, Span<char> result, out int written)
+    public int Decrypt(string name, Span<char> result)
     {
-        using var activity = CacheDiagnostics.ActivitySource.StartActivity("ProtectedCacheCollection.TryDecrypt");
+        using var activity = CacheDiagnostics.ActivitySource.StartActivity("ProtectedCacheCollection.Decrypt");
         if (CacheDiagnostics.EnableSensitiveLogging)
-            CacheDiagnostics.LogSensitiveOperation(activity, "ProtectedCacheCollection.TryDecrypt", ("name", name));
+            CacheDiagnostics.LogSensitiveOperation(activity, "ProtectedCacheCollection.Decrypt", ("name", name));
 
         try
         {
             foreach (var source in _sources)
             {
-                if (source.TryDecrypt(name, result, out written))
-                    return true;
+                var written = source.Decrypt(name, result);
+                if (written > 0)
+                    return written;
             }
 
-            written = 0;
-            return false;
+            return 0;
         }
         catch (Exception ex)
         {

@@ -70,4 +70,29 @@ public class MacKeyChainStorageTests
 
         Assert.Throws<ArgumentNullException>(() => storage.CreateOrGet(string.Empty, new byte[32]));
     }
+
+    [Fact]
+    public void CreateOrGet_WithWrongSizedBuffer_Throws()
+    {
+        if (!OperatingSystem.IsMacOS())
+            return;
+
+        var storage = new MacKeyChainStorage(ServiceName);
+        var index = $"{ServiceName}.{Guid.NewGuid()}";
+
+        Assert.Throws<ArgumentException>(() => storage.CreateOrGet(index, new byte[16]));
+    }
+
+    [Fact]
+    public void Dispose_DoesNotThrow()
+    {
+        if (!OperatingSystem.IsMacOS())
+            return;
+
+        var storage = new MacKeyChainStorage(ServiceName);
+
+        var exception = Record.Exception(storage.Dispose);
+
+        Assert.Null(exception);
+    }
 }

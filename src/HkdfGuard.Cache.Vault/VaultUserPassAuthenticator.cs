@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Net.Http.Headers;
-using System.Security.Cryptography;
 using System.Text.Json;
+using HkdfGuard.Core.Utilities;
 using HkdfGuard.DataProtectionKey.KeyTracking;
 
 namespace HkdfGuard.Cache.Vault;
@@ -60,7 +60,7 @@ public sealed class VaultUserPassAuthenticator(string encryptedUsername, string 
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(bodyBytes);
+                ArrayUtility.ZeroMemory(bodyBytes);
             }
         }
         finally

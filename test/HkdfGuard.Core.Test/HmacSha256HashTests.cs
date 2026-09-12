@@ -60,4 +60,23 @@ public class HmacSha256HashTests
 
         Assert.NotEqual(first, second);
     }
+
+    [Fact]
+    public void ComputeHash_WithAllZeroKey_RecordsExceptionAndThrows()
+    {
+        var hash = new HmacSha256Hash();
+        var result = new byte[32];
+
+        Assert.Throws<ArgumentException>(() => hash.ComputeHash(new byte[32], "payload"u8.ToArray(), result));
+    }
+
+    [Fact]
+    public void ComputeHash_WithAllZeroData_RecordsExceptionAndThrows()
+    {
+        var hash = new HmacSha256Hash();
+        var key = RandomNumberGenerator.GetBytes(32);
+        var result = new byte[32];
+
+        Assert.Throws<ArgumentException>(() => hash.ComputeHash(key, new byte[16], result));
+    }
 }

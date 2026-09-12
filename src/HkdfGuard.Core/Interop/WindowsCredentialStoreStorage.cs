@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using HkdfGuard.Abstractions;
+using HkdfGuard.Core.Utilities;
 
 namespace HkdfGuard.Core.Interop;
 
@@ -25,11 +26,17 @@ public class WindowsCredentialStoreStorage : IKeyInputStorage
     {
         Span<byte> keyMaterial = stackalloc byte[32];
         RandomNumberGenerator.Fill(keyMaterial);
-        // Copy keyMaterial into unmanaged memory
+
         IntPtr blob = Marshal.AllocHGlobal(32);
         try
         {
-            Marshal.Copy(keyMaterial.ToArray(), 0, blob, 32);
+            unsafe
+            {
+                // dest: unmanaged blob
+                // src: stackalloc span
+                var dest = new Span<byte>((byte*)blob, 32);
+                keyMaterial.CopyTo(dest);
+            }
 
             var cred = new CREDENTIAL
             {
@@ -46,7 +53,14 @@ public class WindowsCredentialStoreStorage : IKeyInputStorage
         }
         finally
         {
+            unsafe
+            {
+                // Zero the unmanaged blob before releasing it - FreeHGlobal does not clear
+                // memory, so without this the plaintext key would linger in that heap block.
+                new Span<byte>((byte*)blob, 32).Clear();
+            }
             Marshal.FreeHGlobal(blob);
+            keyMaterial.Clear(); // zeroize stack buffer
         }
     }
 
@@ -64,8 +78,18 @@ public class WindowsCredentialStoreStorage : IKeyInputStorage
 
             if (cred.CredentialBlobSize != 32)
                 return false;
+            
+            var size = (int)cred.CredentialBlobSize;
 
-            Marshal.Copy(cred.CredentialBlob, destination.ToArray(), 0, 32);
+            unsafe
+            {
+                // Create a span directly over the unmanaged CredentialBlob pointer
+                var src = new ReadOnlySpan<byte>((byte*)cred.CredentialBlob, size);
+
+                // Copy directly into the caller-provided destination span
+                src.CopyTo(destination);
+            }
+
             return true;
         }
         finally

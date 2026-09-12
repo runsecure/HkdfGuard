@@ -40,7 +40,7 @@ public class KeyProtector(
             var nonce = result.Slice(0, 32);
             RandomNumberGenerator.Fill(nonce);
             keyDerivation.Derive(nonce, salt, materialIdentifier, iterations, serviceName, key);
-            return cipher.Encrypt(key, plaintext, result.Slice(32, result.Length - 32)) + 32;
+            return cipher.Encrypt(key, plaintext, aad, result.Slice(32, result.Length - 32)) + 32;
         }
         catch (Exception ex)
         {
@@ -49,7 +49,7 @@ public class KeyProtector(
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(key);
+            ArrayUtility.ZeroMemory(key);
         }
     }
 }

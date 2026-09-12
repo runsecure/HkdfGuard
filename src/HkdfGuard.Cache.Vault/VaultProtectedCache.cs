@@ -105,7 +105,12 @@ public sealed class VaultProtectedCache(
             using var document = JsonDocument.Parse(stream);
             var data = document.RootElement.GetProperty("data");
 
-            Cache[name] = EncryptChars(data.GetRawText().AsSpan());
+            // GetRawText() returns a fresh immutable string that can't be zeroed itself - copy it
+            // into a caller-owned Span<char> that EncryptChars can zero once it's done encrypting.
+            var rawText = data.GetRawText();
+            Span<char> secretChars = stackalloc char[rawText.Length];
+            rawText.AsSpan().CopyTo(secretChars);
+            Cache[name] = EncryptChars(secretChars);
             return true;
         }
         catch (Exception ex)

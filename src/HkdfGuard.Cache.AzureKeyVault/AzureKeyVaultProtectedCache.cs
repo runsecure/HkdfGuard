@@ -31,7 +31,13 @@ public sealed class AzureKeyVaultProtectedCache(SecretClient secretClient, IData
         try
         {
             var secret = secretClient.GetSecret(name);
-            Cache[name] = EncryptChars(secret.Value.Value.AsSpan());
+
+            // secret.Value.Value is an immutable string owned by the Key Vault SDK, so it can't be
+            // zeroed itself - copy it into a caller-owned Span<char> that EncryptChars can zero
+            // once it's done encrypting.
+            Span<char> secretChars = stackalloc char[secret.Value.Value.Length];
+            secret.Value.Value.AsSpan().CopyTo(secretChars);
+            Cache[name] = EncryptChars(secretChars);
             return true;
         }
         catch (RequestFailedException ex) when (ex.Status == 404)

@@ -31,7 +31,7 @@ public class VaultProtectedCacheTests
         => new(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
 
     [Fact]
-    public void TryDecrypt_Bytes_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
+    public void Decrypt_Bytes_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
     {
         var handler = new FakeVaultHandler
         {
@@ -40,9 +40,9 @@ public class VaultProtectedCacheTests
         var cache = CreateCache(handler);
 
         var result = new byte[256];
-        var found = cache.TryDecrypt("secret/data/my-app", result, out var written);
+        var written = cache.Decrypt("secret/data/my-app", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         var json = Encoding.UTF8.GetString(result, 0, written);
         using var document = JsonDocument.Parse(json);
         Assert.Equal("admin", document.RootElement.GetProperty("username").GetString());
@@ -50,7 +50,7 @@ public class VaultProtectedCacheTests
     }
 
     [Fact]
-    public void TryDecrypt_Chars_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
+    public void Decrypt_Chars_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
     {
         var handler = new FakeVaultHandler
         {
@@ -59,15 +59,15 @@ public class VaultProtectedCacheTests
         var cache = CreateCache(handler);
 
         var result = new char[256];
-        var found = cache.TryDecrypt("secret/data/api", result, out var written);
+        var written = cache.Decrypt("secret/data/api", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         using var document = JsonDocument.Parse(new string(result, 0, written));
         Assert.Equal("sk-live-abc123", document.RootElement.GetProperty("apiKey").GetString());
     }
 
     [Fact]
-    public void TryDecrypt_RequestsExpectedPath_AndAttachesVaultTokenHeader()
+    public void Decrypt_RequestsExpectedPath_AndAttachesVaultTokenHeader()
     {
         var handler = new FakeVaultHandler
         {
@@ -76,7 +76,7 @@ public class VaultProtectedCacheTests
         var authenticator = new FakeAuthenticator("my-vault-token");
         var cache = CreateCache(handler, authenticator);
 
-        cache.TryDecrypt("secret/data/my-app", new byte[256], out _);
+        cache.Decrypt("secret/data/my-app", new byte[256]);
 
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Get, request.Method);
@@ -85,7 +85,7 @@ public class VaultProtectedCacheTests
     }
 
     [Fact]
-    public void TryDecrypt_SecondCallForSameName_DoesNotFetchFromVaultAgain()
+    public void Decrypt_SecondCallForSameName_DoesNotFetchFromVaultAgain()
     {
         var handler = new FakeVaultHandler
         {
@@ -93,14 +93,14 @@ public class VaultProtectedCacheTests
         };
         var cache = CreateCache(handler);
 
-        cache.TryDecrypt("secret/data/my-app", new byte[256], out _);
-        cache.TryDecrypt("secret/data/my-app", new byte[256], out _);
+        cache.Decrypt("secret/data/my-app", new byte[256]);
+        cache.Decrypt("secret/data/my-app", new byte[256]);
 
         Assert.Single(handler.Requests);
     }
 
     [Fact]
-    public void TryDecrypt_AuthenticatesOnlyOnce_AcrossMultipleDifferentSecrets()
+    public void Decrypt_AuthenticatesOnlyOnce_AcrossMultipleDifferentSecrets()
     {
         var handler = new FakeVaultHandler
         {
@@ -109,14 +109,14 @@ public class VaultProtectedCacheTests
         var authenticator = new FakeAuthenticator("token");
         var cache = CreateCache(handler, authenticator);
 
-        cache.TryDecrypt("secret/data/one", new byte[256], out _);
-        cache.TryDecrypt("secret/data/two", new byte[256], out _);
+        cache.Decrypt("secret/data/one", new byte[256]);
+        cache.Decrypt("secret/data/two", new byte[256]);
 
         Assert.Equal(1, authenticator.GetTokenCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_WithCustomTokenLifetime_ReusesTokenWithinThatWindow()
+    public void Decrypt_WithCustomTokenLifetime_ReusesTokenWithinThatWindow()
     {
         var handler = new FakeVaultHandler
         {
@@ -125,14 +125,14 @@ public class VaultProtectedCacheTests
         var authenticator = new FakeAuthenticator("token");
         var cache = CreateCache(handler, authenticator, tokenLifetime: TimeSpan.FromMinutes(10));
 
-        cache.TryDecrypt("secret/data/one", new byte[256], out _);
-        cache.TryDecrypt("secret/data/two", new byte[256], out _);
+        cache.Decrypt("secret/data/one", new byte[256]);
+        cache.Decrypt("secret/data/two", new byte[256]);
 
         Assert.Equal(1, authenticator.GetTokenCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_AfterTokenLifetimeElapses_ReAuthenticates()
+    public void Decrypt_AfterTokenLifetimeElapses_ReAuthenticates()
     {
         var handler = new FakeVaultHandler
         {
@@ -142,14 +142,14 @@ public class VaultProtectedCacheTests
         // Zero lifetime means the very next check (even nanoseconds later) is already expired.
         var cache = CreateCache(handler, authenticator, tokenLifetime: TimeSpan.Zero);
 
-        cache.TryDecrypt("secret/data/one", new byte[256], out _);
-        cache.TryDecrypt("secret/data/two", new byte[256], out _);
+        cache.Decrypt("secret/data/one", new byte[256]);
+        cache.Decrypt("secret/data/two", new byte[256]);
 
         Assert.Equal(2, authenticator.GetTokenCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_WithUnknownSecretPath_ReturnsFalse()
+    public void Decrypt_WithUnknownSecretPath_ReturnsZero()
     {
         var handler = new FakeVaultHandler
         {
@@ -157,9 +157,8 @@ public class VaultProtectedCacheTests
         };
         var cache = CreateCache(handler);
 
-        var found = cache.TryDecrypt("secret/data/missing", new byte[256], out var written);
+        var written = cache.Decrypt("secret/data/missing", new byte[256]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
     }
 
@@ -194,7 +193,7 @@ public class VaultProtectedCacheTests
     }
 
     [Fact]
-    public void TryDecrypt_WhenVaultReturnsServerError_ThrowsHttpRequestException()
+    public void Decrypt_WhenVaultReturnsServerError_ThrowsHttpRequestException()
     {
         var handler = new FakeVaultHandler
         {
@@ -202,11 +201,11 @@ public class VaultProtectedCacheTests
         };
         var cache = CreateCache(handler);
 
-        Assert.Throws<HttpRequestException>(() => cache.TryDecrypt("secret/data/my-app", new byte[256], out _));
+        Assert.Throws<HttpRequestException>(() => cache.Decrypt("secret/data/my-app", new byte[256]));
     }
 
     [Fact]
-    public void TryDecrypt_WithSensitiveLoggingEnabled_StillPopulatesFromVault()
+    public void Decrypt_WithSensitiveLoggingEnabled_StillPopulatesFromVault()
     {
         var original = VaultDiagnostics.EnableSensitiveLogging;
         try
@@ -219,9 +218,9 @@ public class VaultProtectedCacheTests
             };
             var cache = CreateCache(handler);
 
-            var found = cache.TryDecrypt("secret/data/my-app", new byte[256], out _);
+            var written = cache.Decrypt("secret/data/my-app", new byte[256]);
 
-            Assert.True(found);
+            Assert.True(written > 0);
         }
         finally
         {
@@ -238,11 +237,11 @@ public class VaultProtectedCacheTests
         var cache1 = CreateCache(handler1, storage: storage);
         var cache2 = CreateCache(handler2, storage: storage);
 
-        var found1 = cache1.TryDecrypt("secret/data/my-app", new byte[256], out var written1);
-        var found2 = cache2.TryDecrypt("secret/data/my-app", new byte[256], out var written2);
+        var written1 = cache1.Decrypt("secret/data/my-app", new byte[256]);
+        var written2 = cache2.Decrypt("secret/data/my-app", new byte[256]);
 
-        Assert.True(found1);
-        Assert.True(found2);
+        Assert.True(written1 > 0);
+        Assert.True(written2 > 0);
     }
 
     [Fact]

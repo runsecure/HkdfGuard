@@ -33,53 +33,52 @@ public class AzureKeyVaultProtectedCacheTests
         => new(secretClient, CreateEphemeralKeyFromKeyRing(storage ?? new InMemoryKeyInputStorage()));
 
     [Fact]
-    public void TryDecrypt_Bytes_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
+    public void Decrypt_Bytes_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
     {
         var secretClient = new FakeSecretClient(new Dictionary<string, string> { ["item"] = "secret value" });
         var cache = CreateCache(secretClient);
 
         var result = new byte[32];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("secret value", System.Text.Encoding.UTF8.GetString(result, 0, written));
         Assert.Equal(1, secretClient.GetSecretCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_Chars_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
+    public void Decrypt_Chars_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
     {
         var secretClient = new FakeSecretClient(new Dictionary<string, string> { ["item"] = "secret value" });
         var cache = CreateCache(secretClient);
 
         var result = new char[32];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("secret value", new string(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_SecondCallForSameName_DoesNotFetchFromKeyVaultAgain()
+    public void Decrypt_SecondCallForSameName_DoesNotFetchFromKeyVaultAgain()
     {
         var secretClient = new FakeSecretClient(new Dictionary<string, string> { ["item"] = "secret value" });
         var cache = CreateCache(secretClient);
 
-        cache.TryDecrypt("item", new byte[32], out _);
-        cache.TryDecrypt("item", new byte[32], out _);
+        cache.Decrypt("item", new byte[32]);
+        cache.Decrypt("item", new byte[32]);
 
         Assert.Equal(1, secretClient.GetSecretCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_WithUnknownSecretName_ReturnsFalse()
+    public void Decrypt_WithUnknownSecretName_ReturnsZero()
     {
         var secretClient = new FakeSecretClient(new Dictionary<string, string>());
         var cache = CreateCache(secretClient);
 
-        var found = cache.TryDecrypt("missing", new byte[32], out var written);
+        var written = cache.Decrypt("missing", new byte[32]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
         Assert.Equal(1, secretClient.GetSecretCallCount);
     }
@@ -109,7 +108,7 @@ public class AzureKeyVaultProtectedCacheTests
     }
 
     [Fact]
-    public void TryDecrypt_WhenKeyVaultThrowsNonNotFoundError_RecordsExceptionAndThrows()
+    public void Decrypt_WhenKeyVaultThrowsNonNotFoundError_RecordsExceptionAndThrows()
     {
         var secretClient = new FakeSecretClient(new Dictionary<string, string>())
         {
@@ -117,7 +116,7 @@ public class AzureKeyVaultProtectedCacheTests
         };
         var cache = CreateCache(secretClient);
 
-        Assert.Throws<RequestFailedException>(() => cache.TryDecrypt("item", new byte[32], out _));
+        Assert.Throws<RequestFailedException>(() => cache.Decrypt("item", new byte[32]));
     }
 
     [Fact]
@@ -133,17 +132,17 @@ public class AzureKeyVaultProtectedCacheTests
         // proving each instance's ephemeral key only ever has to agree with itself.
         var result1 = new byte[32];
         var result2 = new byte[32];
-        var found1 = cache1.TryDecrypt("item", result1, out var written1);
-        var found2 = cache2.TryDecrypt("item", result2, out var written2);
+        var written1 = cache1.Decrypt("item", result1);
+        var written2 = cache2.Decrypt("item", result2);
 
-        Assert.True(found1);
-        Assert.True(found2);
+        Assert.True(written1 > 0);
+        Assert.True(written2 > 0);
         Assert.Equal("secret value", System.Text.Encoding.UTF8.GetString(result1, 0, written1));
         Assert.Equal("secret value", System.Text.Encoding.UTF8.GetString(result2, 0, written2));
     }
 
     [Fact]
-    public void TryDecrypt_WithSensitiveLoggingEnabled_StillPopulatesFromKeyVault()
+    public void Decrypt_WithSensitiveLoggingEnabled_StillPopulatesFromKeyVault()
     {
         var original = AzureKeyVaultDiagnostics.EnableSensitiveLogging;
         try
@@ -154,9 +153,9 @@ public class AzureKeyVaultProtectedCacheTests
             var cache = CreateCache(secretClient);
 
             var result = new byte[32];
-            var found = cache.TryDecrypt("item", result, out var written);
+            var written = cache.Decrypt("item", result);
 
-            Assert.True(found);
+            Assert.True(written > 0);
             Assert.Equal("secret value", System.Text.Encoding.UTF8.GetString(result, 0, written));
         }
         finally

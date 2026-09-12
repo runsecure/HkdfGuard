@@ -17,7 +17,7 @@ public class ProtectedCacheTests
     }
 
     [Fact]
-    public void AddTryDecrypt_Bytes_RoundTrips()
+    public void AddDecrypt_Bytes_RoundTrips()
     {
         var cache = CreateCache();
         var plaintext = "top secret bytes"u8.ToArray();
@@ -26,41 +26,41 @@ public class ProtectedCacheTests
         cache.Add("item", plaintext);
 
         var result = new byte[expected.Length];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal(expected.Length, written);
         Assert.Equal(expected, result);
     }
 
     [Fact]
-    public void AddTryDecrypt_Chars_RoundTrips()
+    public void AddDecrypt_Chars_RoundTrips()
     {
         var cache = CreateCache();
         const string plaintext = "top secret chars";
 
-        cache.Add("item", plaintext.AsSpan());
+        cache.Add("item", plaintext.ToCharArray());
 
         var result = new char[plaintext.Length];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal(plaintext.Length, written);
         Assert.Equal(plaintext, new string(result, 0, written));
     }
 
     [Fact]
-    public void AddTryDecrypt_Chars_HandlesMultiByteUtf8()
+    public void AddDecrypt_Chars_HandlesMultiByteUtf8()
     {
         var cache = CreateCache();
         const string plaintext = "héllo wörld 日本語";
 
-        cache.Add("item", plaintext.AsSpan());
+        cache.Add("item", plaintext.ToCharArray());
 
         var result = new char[plaintext.Length];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal(plaintext, new string(result, 0, written));
     }
 
@@ -79,9 +79,9 @@ public class ProtectedCacheTests
     {
         var cache = CreateCache();
 
-        cache.Add("item", "first".AsSpan());
+        cache.Add("item", "first".ToCharArray());
 
-        Assert.Throws<ArgumentException>(() => cache.Add("item", "second".AsSpan()));
+        Assert.Throws<ArgumentException>(() => cache.Add("item", "second".ToCharArray()));
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public class ProtectedCacheTests
         Assert.Throws<ArgumentException>(() => cache.Add("item", "attempted-overwrite"u8.ToArray()));
 
         var result = new byte[expected.Length];
-        cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
         Assert.Equal(expected, result[..written]);
     }
 
@@ -119,9 +119,9 @@ public class ProtectedCacheTests
 
         cache.TryGetMaxDecryptedLength("item", out var maxLength);
         var result = new byte[maxLength];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("second-value", Encoding.UTF8.GetString(result, 0, written));
     }
 
@@ -130,13 +130,13 @@ public class ProtectedCacheTests
     {
         var cache = CreateCache();
 
-        cache.AddOrUpdate("item", "first".AsSpan());
-        cache.AddOrUpdate("item", "second-value".AsSpan());
+        cache.AddOrUpdate("item", "first".ToCharArray());
+        cache.AddOrUpdate("item", "second-value".ToCharArray());
 
         var result = new char[32];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("second-value", new string(result, 0, written));
     }
 
@@ -152,7 +152,7 @@ public class ProtectedCacheTests
     }
 
     [Fact]
-    public void NamesAreCaseInsensitive_AcrossAddAndTryDecrypt()
+    public void NamesAreCaseInsensitive_AcrossAddAndDecrypt()
     {
         var cache = CreateCache();
         var plaintext = "value"u8.ToArray();
@@ -161,9 +161,9 @@ public class ProtectedCacheTests
         cache.Add("Item-Name", plaintext);
 
         var result = new byte[expected.Length];
-        var found = cache.TryDecrypt("ITEM-name", result, out var written);
+        var written = cache.Decrypt("ITEM-name", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal(expected, result[..written]);
     }
 
@@ -177,30 +177,28 @@ public class ProtectedCacheTests
 
         cache.TryGetMaxDecryptedLength("item-name", out var maxLength);
         var result = new byte[maxLength];
-        cache.TryDecrypt("item-name", result, out var written);
+        var written = cache.Decrypt("item-name", result);
 
         Assert.Equal("second", Encoding.UTF8.GetString(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_WithUnknownName_ReturnsFalse()
+    public void Decrypt_Bytes_WithUnknownName_ReturnsZero()
     {
         var cache = CreateCache();
 
-        var found = cache.TryDecrypt("missing", new byte[16], out var written);
+        var written = cache.Decrypt("missing", new byte[16]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
     }
 
     [Fact]
-    public void TryDecrypt_Chars_WithUnknownName_ReturnsFalse()
+    public void Decrypt_Chars_WithUnknownName_ReturnsZero()
     {
         var cache = CreateCache();
 
-        var found = cache.TryDecrypt("missing", new char[16], out var written);
+        var written = cache.Decrypt("missing", new char[16]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
     }
 
@@ -216,7 +214,7 @@ public class ProtectedCacheTests
     }
 
     [Fact]
-    public void TryGetMaxDecryptedLength_IsSafeUpperBoundForTryDecrypt()
+    public void TryGetMaxDecryptedLength_IsSafeUpperBoundForDecrypt()
     {
         var cache = CreateCache();
         var plaintext = "some plaintext value"u8.ToArray();
@@ -228,14 +226,14 @@ public class ProtectedCacheTests
         Assert.True(found);
 
         var result = new byte[maxLength];
-        cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
         Assert.True(maxLength >= written);
         Assert.Equal(expected, result[..written]);
     }
 
     [Fact]
-    public void AddTryDecrypt_WithSensitiveLoggingEnabled_StillRoundTrips()
+    public void AddDecrypt_WithSensitiveLoggingEnabled_StillRoundTrips()
     {
         var original = CacheDiagnostics.EnableSensitiveLogging;
         try
@@ -248,9 +246,9 @@ public class ProtectedCacheTests
 
             cache.Add("item", plaintext);
             var result = new byte[expected.Length];
-            var found = cache.TryDecrypt("item", result, out var written);
+            var written = cache.Decrypt("item", result);
 
-            Assert.True(found);
+            Assert.True(written > 0);
             Assert.Equal(expected, result[..written]);
         }
         finally
@@ -260,7 +258,7 @@ public class ProtectedCacheTests
     }
 
     [Fact]
-    public void AddOrUpdateTryDecrypt_Chars_WithSensitiveLoggingEnabled_StillRoundTrips()
+    public void AddOrUpdateDecrypt_Chars_WithSensitiveLoggingEnabled_StillRoundTrips()
     {
         var original = CacheDiagnostics.EnableSensitiveLogging;
         try
@@ -270,11 +268,11 @@ public class ProtectedCacheTests
             var cache = CreateCache();
             const string plaintext = "top secret chars";
 
-            cache.AddOrUpdate("item", plaintext.AsSpan());
+            cache.AddOrUpdate("item", plaintext.ToCharArray());
             var result = new char[plaintext.Length];
-            var found = cache.TryDecrypt("item", result, out var written);
+            var written = cache.Decrypt("item", result);
 
-            Assert.True(found);
+            Assert.True(written > 0);
             Assert.Equal(plaintext, new string(result, 0, written));
         }
         finally
@@ -294,11 +292,11 @@ public class ProtectedCacheTests
             var cache = CreateCache();
             const string plaintext = "top secret chars";
 
-            cache.Add("item", plaintext.AsSpan());
+            cache.Add("item", plaintext.ToCharArray());
             var result = new char[plaintext.Length];
-            var found = cache.TryDecrypt("item", result, out var written);
+            var written = cache.Decrypt("item", result);
 
-            Assert.True(found);
+            Assert.True(written > 0);
             Assert.Equal(plaintext, new string(result, 0, written));
         }
         finally
@@ -321,9 +319,9 @@ public class ProtectedCacheTests
 
             cache.AddOrUpdate("item", plaintext);
             var result = new byte[expected.Length];
-            var found = cache.TryDecrypt("item", result, out var written);
+            var written = cache.Decrypt("item", result);
 
-            Assert.True(found);
+            Assert.True(written > 0);
             Assert.Equal(expected, result[..written]);
         }
         finally
@@ -333,23 +331,23 @@ public class ProtectedCacheTests
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_WithTooSmallResultBuffer_RecordsExceptionAndThrows()
+    public void Decrypt_Bytes_WithTooSmallResultBuffer_RecordsExceptionAndThrows()
     {
         var cache = CreateCache();
         cache.Add("item", "top secret"u8.ToArray());
 
         var tooSmall = new byte[1];
-        Assert.Throws<ArgumentException>(() => cache.TryDecrypt("item", tooSmall, out _));
+        Assert.Throws<ArgumentException>(() => cache.Decrypt("item", tooSmall));
     }
 
     [Fact]
-    public void TryDecrypt_Chars_WithTooSmallResultBuffer_RecordsExceptionAndThrows()
+    public void Decrypt_Chars_WithTooSmallResultBuffer_RecordsExceptionAndThrows()
     {
         var cache = CreateCache();
-        cache.Add("item", "top secret chars".AsSpan());
+        cache.Add("item", "top secret chars".ToCharArray());
 
         var tooSmall = new char[1];
-        Assert.Throws<ArgumentException>(() => cache.TryDecrypt("item", tooSmall, out _));
+        Assert.Throws<ArgumentException>(() => cache.Decrypt("item", tooSmall));
     }
 
     [Fact]
@@ -365,7 +363,7 @@ public class ProtectedCacheTests
     {
         var cache = CreateCache();
 
-        Assert.Throws<ArgumentNullException>(() => cache.Add(null!, "value".AsSpan()));
+        Assert.Throws<ArgumentNullException>(() => cache.Add(null!, "value".ToCharArray()));
     }
 
     [Fact]
@@ -381,11 +379,11 @@ public class ProtectedCacheTests
     {
         var cache = CreateCache();
 
-        Assert.Throws<ArgumentNullException>(() => cache.AddOrUpdate(null!, "value".AsSpan()));
+        Assert.Throws<ArgumentNullException>(() => cache.AddOrUpdate(null!, "value".ToCharArray()));
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_WithMissingName_AndSensitiveLoggingEnabled_StillReturnsFalse()
+    public void Decrypt_Bytes_WithMissingName_AndSensitiveLoggingEnabled_StillReturnsZero()
     {
         var original = CacheDiagnostics.EnableSensitiveLogging;
         try
@@ -393,9 +391,8 @@ public class ProtectedCacheTests
             CacheDiagnostics.EnableSensitiveLogging = true;
             var cache = CreateCache();
 
-            var found = cache.TryDecrypt("missing", new byte[16], out var written);
+            var written = cache.Decrypt("missing", new byte[16]);
 
-            Assert.False(found);
             Assert.Equal(0, written);
         }
         finally
@@ -405,7 +402,7 @@ public class ProtectedCacheTests
     }
 
     [Fact]
-    public void ConcurrentAddAndTryDecrypt_AcrossManyNames_AllRoundTrip()
+    public void ConcurrentAddAndDecrypt_AcrossManyNames_AllRoundTrip()
     {
         var cache = CreateCache();
         const int itemCount = 200;
@@ -419,8 +416,8 @@ public class ProtectedCacheTests
         {
             cache.TryGetMaxDecryptedLength($"item-{i}", out var maxLength);
             var result = new byte[maxLength];
-            var found = cache.TryDecrypt($"item-{i}", result, out var written);
-            Assert.True(found);
+            var written = cache.Decrypt($"item-{i}", result);
+            Assert.True(written > 0);
             Assert.Equal($"value-{i}", Encoding.UTF8.GetString(result, 0, written));
         });
     }

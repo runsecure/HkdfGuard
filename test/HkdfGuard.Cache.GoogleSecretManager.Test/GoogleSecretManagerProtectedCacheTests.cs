@@ -21,67 +21,66 @@ public class GoogleSecretManagerProtectedCacheTests
     private const string SecretName = "projects/my-project/secrets/my-secret/versions/latest";
 
     [Fact]
-    public void TryDecrypt_Bytes_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
+    public void Decrypt_Bytes_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
     {
         var client = new FakeSecretManagerServiceClient(new Dictionary<string, string> { [SecretName] = "secret value" });
         var cache = CreateCache(client);
 
         var result = new byte[32];
-        var found = cache.TryDecrypt(SecretName, result, out var written);
+        var written = cache.Decrypt(SecretName, result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("secret value", Encoding.UTF8.GetString(result, 0, written));
         Assert.Equal(1, client.AccessSecretVersionCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_Chars_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
+    public void Decrypt_Chars_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
     {
         var client = new FakeSecretManagerServiceClient(new Dictionary<string, string> { [SecretName] = "secret value" });
         var cache = CreateCache(client);
 
         var result = new char[32];
-        var found = cache.TryDecrypt(SecretName, result, out var written);
+        var written = cache.Decrypt(SecretName, result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("secret value", new string(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_HandlesMultiByteUtf8Secret()
+    public void Decrypt_HandlesMultiByteUtf8Secret()
     {
         const string plaintext = "héllo wörld 日本語";
         var client = new FakeSecretManagerServiceClient(new Dictionary<string, string> { [SecretName] = plaintext });
         var cache = CreateCache(client);
 
         var result = new char[plaintext.Length];
-        var found = cache.TryDecrypt(SecretName, result, out var written);
+        var written = cache.Decrypt(SecretName, result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal(plaintext, new string(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_SecondCallForSameName_DoesNotFetchFromGoogleAgain()
+    public void Decrypt_SecondCallForSameName_DoesNotFetchFromGoogleAgain()
     {
         var client = new FakeSecretManagerServiceClient(new Dictionary<string, string> { [SecretName] = "secret value" });
         var cache = CreateCache(client);
 
-        cache.TryDecrypt(SecretName, new byte[32], out _);
-        cache.TryDecrypt(SecretName, new byte[32], out _);
+        cache.Decrypt(SecretName, new byte[32]);
+        cache.Decrypt(SecretName, new byte[32]);
 
         Assert.Equal(1, client.AccessSecretVersionCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_WithUnknownSecretName_ReturnsFalse()
+    public void Decrypt_WithUnknownSecretName_ReturnsZero()
     {
         var client = new FakeSecretManagerServiceClient(new Dictionary<string, string>());
         var cache = CreateCache(client);
 
-        var found = cache.TryDecrypt("projects/my-project/secrets/missing/versions/latest", new byte[32], out var written);
+        var written = cache.Decrypt("projects/my-project/secrets/missing/versions/latest", new byte[32]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
         Assert.Equal(1, client.AccessSecretVersionCallCount);
     }
@@ -111,7 +110,7 @@ public class GoogleSecretManagerProtectedCacheTests
     }
 
     [Fact]
-    public void TryDecrypt_WhenGoogleThrowsNonNotFoundError_RecordsExceptionAndThrows()
+    public void Decrypt_WhenGoogleThrowsNonNotFoundError_RecordsExceptionAndThrows()
     {
         var client = new FakeSecretManagerServiceClient(new Dictionary<string, string>())
         {
@@ -119,7 +118,7 @@ public class GoogleSecretManagerProtectedCacheTests
         };
         var cache = CreateCache(client);
 
-        Assert.Throws<RpcException>(() => cache.TryDecrypt(SecretName, new byte[32], out _));
+        Assert.Throws<RpcException>(() => cache.Decrypt(SecretName, new byte[32]));
     }
 
     [Fact]
@@ -131,17 +130,17 @@ public class GoogleSecretManagerProtectedCacheTests
 
         var result1 = new byte[32];
         var result2 = new byte[32];
-        var found1 = cache1.TryDecrypt(SecretName, result1, out var written1);
-        var found2 = cache2.TryDecrypt(SecretName, result2, out var written2);
+        var written1 = cache1.Decrypt(SecretName, result1);
+        var written2 = cache2.Decrypt(SecretName, result2);
 
-        Assert.True(found1);
-        Assert.True(found2);
+        Assert.True(written1 > 0);
+        Assert.True(written2 > 0);
         Assert.Equal("secret value", Encoding.UTF8.GetString(result1, 0, written1));
         Assert.Equal("secret value", Encoding.UTF8.GetString(result2, 0, written2));
     }
 
     [Fact]
-    public void TryDecrypt_WithSensitiveLoggingEnabled_StillPopulatesFromGoogle()
+    public void Decrypt_WithSensitiveLoggingEnabled_StillPopulatesFromGoogle()
     {
         var original = GoogleSecretManagerDiagnostics.EnableSensitiveLogging;
         try
@@ -152,9 +151,9 @@ public class GoogleSecretManagerProtectedCacheTests
             var cache = CreateCache(client);
 
             var result = new byte[32];
-            var found = cache.TryDecrypt(SecretName, result, out var written);
+            var written = cache.Decrypt(SecretName, result);
 
-            Assert.True(found);
+            Assert.True(written > 0);
             Assert.Equal("secret value", Encoding.UTF8.GetString(result, 0, written));
         }
         finally

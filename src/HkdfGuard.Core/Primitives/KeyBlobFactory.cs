@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using HkdfGuard.Abstractions;
+using HkdfGuard.Core.Utilities;
 
 namespace HkdfGuard.Core.Primitives;
 
@@ -109,7 +110,7 @@ public static class KeyBlobFactory
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(expectedSignature);
+            ArrayUtility.ZeroMemory(expectedSignature);
         }
     }
 
@@ -135,7 +136,7 @@ public static class KeyBlobFactory
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(signingKey);
+            ArrayUtility.ZeroMemory(signingKey);
         }
     }
 }

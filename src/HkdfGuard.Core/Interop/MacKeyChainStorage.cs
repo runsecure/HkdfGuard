@@ -1,7 +1,7 @@
-using System;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using HkdfGuard.Abstractions;
+using HkdfGuard.Core.Utilities;
 
 namespace HkdfGuard.Core.Interop;
 
@@ -47,12 +47,19 @@ internal class MacKeyChainStorage(string service) : IKeyInputStorage
             throw new ArgumentNullException(nameof(index));
 
         Span<byte> keyMaterial = stackalloc byte[32];
-        RandomNumberGenerator.Fill(keyMaterial);
-        using var dict = BuildAddDictionary(service, index, keyMaterial);
+        try
+        {
+            RandomNumberGenerator.Fill(keyMaterial);
+            using var dict = BuildAddDictionary(service, index, keyMaterial);
 
-        int status = SecItemAdd(dict.Handle, out _);
-        if (status != 0)
-            throw new Exception($"SecItemAdd failed: {status}");
+            int status = SecItemAdd(dict.Handle, out _);
+            if (status != 0)
+                throw new Exception($"SecItemAdd failed: {status}");
+        }
+        finally
+        {
+            ArrayUtility.ZeroMemory(keyMaterial);
+        }
     }
 
     private bool TryLoad(string index, scoped Span<byte> destination)
@@ -169,9 +176,18 @@ internal class MacKeyChainStorage(string service) : IKeyInputStorage
             throw new Exception("Keychain item is not 32 bytes.");
 
         IntPtr ptr = CFDataGetBytePtr(cfData);
-        var buffer = new byte[32];
-        Marshal.Copy(ptr, buffer, 0, 32);
-        buffer.CopyTo(dest);
+
+        unsafe
+        {
+            fixed (byte* destPtr = dest)
+            {
+                Buffer.MemoryCopy(
+                    source: (void*)ptr,
+                    destination: destPtr,
+                    destinationSizeInBytes: dest.Length,
+                    sourceBytesToCopy: 32);
+            }
+        }
     }
 
     // ---------------- Native Imports ----------------

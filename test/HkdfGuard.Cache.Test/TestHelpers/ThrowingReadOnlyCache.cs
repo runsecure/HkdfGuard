@@ -8,7 +8,7 @@ namespace HkdfGuard.Cache.Test.TestHelpers;
 /// </summary>
 internal sealed class ThrowingReadOnlyCache(Exception exception) : IProtectedReadOnlyCache
 {
-    public bool TryDecrypt(string name, Span<byte> result, out int written) => throw exception;
-    public bool TryDecrypt(string name, Span<char> result, out int written) => throw exception;
+    public int Decrypt(string name, Span<byte> result) => throw exception;
+    public int Decrypt(string name, Span<char> result) => throw exception;
     public bool TryGetMaxDecryptedLength(string name, out int maxLength) => throw exception;
 }

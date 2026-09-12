@@ -4,11 +4,11 @@ namespace HkdfGuard.Cache;
 
 /// <summary>
 /// Default IProtectedCache. Backed by a single, already-built IDataProtectionKey - every
-/// Add/AddOrUpdate encrypts through it (see ProtectedCacheBase), every TryDecrypt reveals
+/// Add/AddOrUpdate encrypts through it (see ProtectedCacheBase), every Decrypt reveals
 /// through it. Add uses TryAdd as its atomicity gate so a duplicate name is rejected even under
-/// concurrent callers; AddOrUpdate's upsert and TryDecrypt's reads are otherwise lock-free, so
+/// concurrent callers; AddOrUpdate's upsert and Decrypt's reads are otherwise lock-free, so
 /// this holds up under highly concurrent access in every direction. Nothing here ever holds
-/// plaintext beyond the duration of a single Add/AddOrUpdate/TryDecrypt call.
+/// plaintext beyond the duration of a single Add/AddOrUpdate/Decrypt call.
 /// </summary>
 public sealed class ProtectedCache(IDataProtectionKey dataProtectionKey) : ProtectedCacheBase(dataProtectionKey), IProtectedCache
 {
@@ -33,7 +33,7 @@ public sealed class ProtectedCache(IDataProtectionKey dataProtectionKey) : Prote
     }
 
     /// <inheritdoc/>
-    public void Add(string name, ReadOnlySpan<char> plaintext)
+    public void Add(string name, Span<char> plaintext)
     {
         using var activity = CacheDiagnostics.ActivitySource.StartActivity("ProtectedCache.Add");
         if (CacheDiagnostics.EnableSensitiveLogging)
@@ -72,7 +72,7 @@ public sealed class ProtectedCache(IDataProtectionKey dataProtectionKey) : Prote
     }
 
     /// <inheritdoc/>
-    public void AddOrUpdate(string name, ReadOnlySpan<char> plaintext)
+    public void AddOrUpdate(string name, Span<char> plaintext)
     {
         using var activity = CacheDiagnostics.ActivitySource.StartActivity("ProtectedCache.AddOrUpdate");
         if (CacheDiagnostics.EnableSensitiveLogging)

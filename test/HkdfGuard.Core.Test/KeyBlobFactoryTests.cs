@@ -133,4 +133,64 @@ public class KeyBlobFactoryTests
 
         Assert.False(KeyBlobFactory.TryLoad(blobBytes, mismatchedSpec, BlobSpec, out _));
     }
+
+    [Fact]
+    public void Create_WithWrongPlaintextKeyLength_Throws()
+    {
+        var keySpec = CreateKeySpec(new InMemoryKeyInputStorage());
+        var salt = RandomNumberGenerator.GetBytes(BlobSpec.SaltLength);
+        var protector = KeyProtectorFactory.Create(keySpec, salt);
+
+        Assert.Throws<ArgumentException>(() =>
+            KeyBlobFactory.Create(RandomNumberGenerator.GetBytes(16), protector, keySpec, BlobSpec, salt));
+    }
+
+    [Fact]
+    public void Create_WithWrongSaltLength_Throws()
+    {
+        var keySpec = CreateKeySpec(new InMemoryKeyInputStorage());
+        var salt = RandomNumberGenerator.GetBytes(BlobSpec.SaltLength);
+        var protector = KeyProtectorFactory.Create(keySpec, salt);
+
+        Assert.Throws<ArgumentException>(() =>
+            KeyBlobFactory.Create(RandomNumberGenerator.GetBytes(32), protector, keySpec, BlobSpec, RandomNumberGenerator.GetBytes(16)));
+    }
+
+    [Fact]
+    public void Create_WhenProtectorProducesWrongLength_Throws()
+    {
+        var keySpec = CreateKeySpec(new InMemoryKeyInputStorage());
+        var salt = RandomNumberGenerator.GetBytes(BlobSpec.SaltLength);
+
+        Assert.Throws<ArgumentException>(() =>
+            KeyBlobFactory.Create(RandomNumberGenerator.GetBytes(32), new FixedLengthKeyProtector(1), keySpec, BlobSpec, salt));
+    }
+
+    [Fact]
+    public void TryLoad_WithZeroLengthSignatureSpec_SkipsSignatureVerification()
+    {
+        // A BlobSpec with SignatureLength: 0 has nothing to verify, so TryLoad should short-circuit
+        // to success as soon as the raw bytes fit the layout - it never calls Sign at all.
+        var unsignedSpec = new KeyBlobSpec(
+            saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 0);
+        var keySpec = CreateKeySpec(new InMemoryKeyInputStorage());
+        var salt = RandomNumberGenerator.GetBytes(unsignedSpec.SaltLength);
+        var protector = KeyProtectorFactory.Create(keySpec, salt);
+        var plaintextKey = RandomNumberGenerator.GetBytes(32);
+
+        var blob = KeyBlobFactory.Create(plaintextKey, protector, keySpec, unsignedSpec, salt);
+        var blobBytes = new byte[unsignedSpec.TotalLength];
+        blob.Save(blobBytes);
+
+        Assert.True(KeyBlobFactory.TryLoad(blobBytes, keySpec, unsignedSpec, out var loaded));
+        Assert.NotNull(loaded);
+    }
+
+    // Simulates an IKeyProtector implementation that doesn't honor the KeyBlobSpec's expected
+    // wrapped length - exercises KeyBlobFactory.Create's own defensive check against that.
+    private sealed class FixedLengthKeyProtector(int length) : IKeyProtector
+    {
+        public int Encrypt(Span<byte> plaintext, Span<byte> result) => length;
+        public int Encrypt(Span<byte> plaintext, IAdditionalAuthData aad, Span<byte> result) => length;
+    }
 }

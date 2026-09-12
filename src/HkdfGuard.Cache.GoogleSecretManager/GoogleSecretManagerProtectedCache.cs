@@ -34,7 +34,13 @@ public sealed class GoogleSecretManagerProtectedCache(SecretManagerServiceClient
         try
         {
             var response = secretManagerClient.AccessSecretVersion(name);
-            Cache[name] = EncryptChars(response.Payload.Data.ToStringUtf8().AsSpan());
+
+            // ToStringUtf8() returns an immutable string that can't be zeroed itself - copy it
+            // into a caller-owned Span<char> that EncryptChars can zero once it's done encrypting.
+            var secretValue = response.Payload.Data.ToStringUtf8();
+            Span<char> secretChars = stackalloc char[secretValue.Length];
+            secretValue.AsSpan().CopyTo(secretChars);
+            Cache[name] = EncryptChars(secretChars);
             return true;
         }
         catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)

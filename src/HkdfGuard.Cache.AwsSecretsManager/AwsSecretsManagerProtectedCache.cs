@@ -49,7 +49,12 @@ public sealed class AwsSecretsManagerProtectedCache(IAmazonSecretsManager secret
                     $"Secret '{name}' has no SecretString value - binary secrets (SecretBinary) are not supported.");
             }
 
-            Cache[name] = EncryptChars(response.SecretString.AsSpan());
+            // response.SecretString is an immutable string owned by the AWS SDK, so it can't be
+            // zeroed itself - copy it into a caller-owned Span<char> that EncryptChars can zero
+            // once it's done encrypting.
+            Span<char> secretChars = stackalloc char[response.SecretString.Length];
+            response.SecretString.AsSpan().CopyTo(secretChars);
+            Cache[name] = EncryptChars(secretChars);
             return true;
         }
         catch (ResourceNotFoundException)

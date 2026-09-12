@@ -1,5 +1,5 @@
-using System.Security.Cryptography;
 using HkdfGuard.Core.Primitives;
+using HkdfGuard.Core.Utilities;
 using HkdfGuard.DataProtectionKey.Diagnostics;
 using HkdfGuard.Abstractions;
 
@@ -50,7 +50,7 @@ public class KeyWrappedDataProtectionKey(
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(key);
+            ArrayUtility.ZeroMemory(key);
         }
     }
 
@@ -79,7 +79,7 @@ public class KeyWrappedDataProtectionKey(
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(key);
+            ArrayUtility.ZeroMemory(key);
         }
     }
 }

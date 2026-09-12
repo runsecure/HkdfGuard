@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using System.Security.Cryptography;
 using System.Text;
 using HkdfGuard.Abstractions;
+using HkdfGuard.Core.Utilities;
 
 namespace HkdfGuard.Cache;
 
@@ -9,7 +9,7 @@ namespace HkdfGuard.Cache;
 /// Shared IProtectedReadOnlyCache plumbing for every cache in this library: a single
 /// IDataProtectionKey, a ConcurrentDictionary&lt;string, byte[]&gt; of encrypted bytes keyed
 /// case-insensitively (OrdinalIgnoreCase), and the encrypt/decrypt/telemetry logic every
-/// concrete cache needs. TryDecrypt/TryGetMaxDecryptedLength fall back to TryPopulate on a miss
+/// concrete cache needs. Decrypt/TryGetMaxDecryptedLength fall back to TryPopulate on a miss
 /// before giving up - the default implementation here just returns false (nothing to pull from),
 /// but a subclass backed by an external source (e.g. a remote secret store) overrides it to fetch
 /// the plaintext value and encrypt it into Cache on demand, so nothing here ever holds plaintext
@@ -24,7 +24,7 @@ public abstract class ProtectedCacheBase(IDataProtectionKey dataProtectionKey) :
     protected readonly ConcurrentDictionary<string, byte[]> Cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Called when name isn't already in Cache, before TryDecrypt/TryGetMaxDecryptedLength give
+    /// Called when name isn't already in Cache, before Decrypt/TryGetMaxDecryptedLength give
     /// up and return false. The default implementation does nothing - override to pull a value in
     /// from an external source and populate Cache (e.g. via Encrypt/EncryptChars) before
     /// returning true.
@@ -34,22 +34,18 @@ public abstract class ProtectedCacheBase(IDataProtectionKey dataProtectionKey) :
     protected virtual bool TryPopulate(string name) => false;
 
     /// <inheritdoc/>
-    public bool TryDecrypt(string name, Span<byte> result, out int written)
+    public int Decrypt(string name, Span<byte> result)
     {
-        using var activity = CacheDiagnostics.ActivitySource.StartActivity($"{GetType().Name}.TryDecrypt");
+        using var activity = CacheDiagnostics.ActivitySource.StartActivity($"{GetType().Name}.Decrypt");
         if (CacheDiagnostics.EnableSensitiveLogging)
-            CacheDiagnostics.LogSensitiveOperation(activity, $"{GetType().Name}.TryDecrypt", ("name", name));
+            CacheDiagnostics.LogSensitiveOperation(activity, $"{GetType().Name}.Decrypt", ("name", name));
 
         try
         {
             if (!TryGetEncrypted(name, out var encrypted))
-            {
-                written = 0;
-                return false;
-            }
+                return 0;
 
-            written = dataProtectionKey.Decrypt(encrypted, result);
-            return true;
+            return dataProtectionKey.Decrypt(encrypted, result);
         }
         catch (Exception ex)
         {
@@ -59,32 +55,28 @@ public abstract class ProtectedCacheBase(IDataProtectionKey dataProtectionKey) :
     }
 
     /// <inheritdoc/>
-    public bool TryDecrypt(string name, Span<char> result, out int written)
+    public int Decrypt(string name, Span<char> result)
     {
-        using var activity = CacheDiagnostics.ActivitySource.StartActivity($"{GetType().Name}.TryDecrypt");
+        using var activity = CacheDiagnostics.ActivitySource.StartActivity($"{GetType().Name}.Decrypt");
         if (CacheDiagnostics.EnableSensitiveLogging)
-            CacheDiagnostics.LogSensitiveOperation(activity, $"{GetType().Name}.TryDecrypt", ("name", name));
+            CacheDiagnostics.LogSensitiveOperation(activity, $"{GetType().Name}.Decrypt", ("name", name));
 
         try
         {
             if (!TryGetEncrypted(name, out var encrypted))
-            {
-                written = 0;
-                return false;
-            }
+                return 0;
 
             // AEAD ciphertext is always at least as long as the plaintext it encloses, so
             // encrypted.Length is a safe upper bound for the decrypted UTF8 byte count.
-            var plaintextBytes = new byte[encrypted.Length];
+            Span<byte> plaintextBytes = stackalloc byte[encrypted.Length];
             try
             {
                 var decryptedLength = dataProtectionKey.Decrypt(encrypted, plaintextBytes);
-                written = Encoding.UTF8.GetChars(plaintextBytes.AsSpan(0, decryptedLength), result);
-                return true;
+                return Encoding.UTF8.GetChars(plaintextBytes[..decryptedLength], result);
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(plaintextBytes);
+                ArrayUtility.ZeroMemory(plaintextBytes);
             }
         }
         catch (Exception ex)
@@ -125,12 +117,22 @@ public abstract class ProtectedCacheBase(IDataProtectionKey dataProtectionKey) :
     protected byte[] Encrypt(Span<byte> plaintext) => dataProtectionKey.Encrypt(plaintext);
 
     /// <summary>
-    /// Encrypts plaintext (as UTF8 bytes) through this cache's IDataProtectionKey.
+    /// Encrypts plaintext (as UTF8 bytes) through this cache's IDataProtectionKey. plaintext is
+    /// zeroed as a side effect - callers that only hold a string must copy it into a caller-owned
+    /// Span&lt;char&gt; (e.g. via stackalloc) first, since a string's own backing buffer can't be
+    /// safely cleared.
     /// </summary>
-    protected byte[] EncryptChars(ReadOnlySpan<char> plaintext)
+    protected byte[] EncryptChars(Span<char> plaintext)
     {
         var plaintextBytes = new byte[Encoding.UTF8.GetByteCount(plaintext)];
-        Encoding.UTF8.GetBytes(plaintext, plaintextBytes);
-        return dataProtectionKey.Encrypt(plaintextBytes);
+        try
+        {
+            Encoding.UTF8.GetBytes(plaintext, plaintextBytes);
+            return dataProtectionKey.Encrypt(plaintextBytes);
+        }
+        finally
+        {
+            ArrayUtility.ZeroMemory(plaintext);
+        }
     }
 }

@@ -10,7 +10,7 @@ namespace HkdfGuard.EncryptedConfiguration;
 /// Default IProtectedConfigurationRoot. Delegates every IConfigurationRoot member to the
 /// wrapped root unchanged, and reveals configuration values formatted as protected secrets via
 /// an IDataProtector bound to the given KeyRing. Configuration itself only ever holds formatted
-/// ciphertext strings - TryDecrypt reveals fresh from the underlying root on every call rather
+/// ciphertext strings - Decrypt reveals fresh from the underlying root on every call rather
 /// than caching anything, so a Reload takes effect immediately.
 /// </summary>
 public sealed class ProtectedConfigurationRoot(IConfigurationRoot configurationRoot, KeyRing keyRing)
@@ -47,23 +47,19 @@ public sealed class ProtectedConfigurationRoot(IConfigurationRoot configurationR
     public IChangeToken GetReloadToken() => configurationRoot.GetReloadToken();
 
     /// <inheritdoc/>
-    public bool TryDecrypt(string name, Span<char> result, out int written)
+    public int Decrypt(string name, Span<char> result)
     {
-        using var activity = EncryptedConfigurationDiagnostics.ActivitySource.StartActivity("ProtectedConfigurationRoot.TryDecrypt");
+        using var activity = EncryptedConfigurationDiagnostics.ActivitySource.StartActivity("ProtectedConfigurationRoot.Decrypt");
         if (EncryptedConfigurationDiagnostics.EnableSensitiveLogging)
-            EncryptedConfigurationDiagnostics.LogSensitiveOperation(activity, "ProtectedConfigurationRoot.TryDecrypt", ("name", name));
+            EncryptedConfigurationDiagnostics.LogSensitiveOperation(activity, "ProtectedConfigurationRoot.Decrypt", ("name", name));
 
         try
         {
             var value = configurationRoot[name];
             if (value is null)
-            {
-                written = 0;
-                return false;
-            }
+                return 0;
 
-            written = _protector.Decrypt(value, result);
-            return true;
+            return _protector.Decrypt(value, result);
         }
         catch (Exception ex)
         {
@@ -73,20 +69,17 @@ public sealed class ProtectedConfigurationRoot(IConfigurationRoot configurationR
     }
 
     /// <inheritdoc/>
-    public bool TryDecrypt(string name, Span<byte> result, out int written)
+    public int Decrypt(string name, Span<byte> result)
     {
-        using var activity = EncryptedConfigurationDiagnostics.ActivitySource.StartActivity("ProtectedConfigurationRoot.TryDecrypt");
+        using var activity = EncryptedConfigurationDiagnostics.ActivitySource.StartActivity("ProtectedConfigurationRoot.Decrypt");
         if (EncryptedConfigurationDiagnostics.EnableSensitiveLogging)
-            EncryptedConfigurationDiagnostics.LogSensitiveOperation(activity, "ProtectedConfigurationRoot.TryDecrypt", ("name", name));
+            EncryptedConfigurationDiagnostics.LogSensitiveOperation(activity, "ProtectedConfigurationRoot.Decrypt", ("name", name));
 
         try
         {
             var value = configurationRoot[name];
             if (value is null)
-            {
-                written = 0;
-                return false;
-            }
+                return 0;
 
             // The format provider's max-length bound is computed from the ciphertext's own byte
             // length, so it's a safe upper bound for the decrypted plaintext's UTF8 byte count
@@ -95,8 +88,7 @@ public sealed class ProtectedConfigurationRoot(IConfigurationRoot configurationR
             try
             {
                 var charsWritten = _protector.Decrypt(value, charBuffer);
-                written = Encoding.UTF8.GetBytes(charBuffer.AsSpan(0, charsWritten), result);
-                return true;
+                return Encoding.UTF8.GetBytes(charBuffer.AsSpan(0, charsWritten), result);
             }
             finally
             {

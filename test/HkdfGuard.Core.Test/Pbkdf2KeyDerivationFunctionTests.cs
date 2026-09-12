@@ -71,4 +71,15 @@ public class Pbkdf2KeyDerivationFunctionTests
 
         Assert.NotEqual(first, second);
     }
+
+    [Fact]
+    public void Derive_WithAllZeroUniqueBytes_RecordsExceptionAndThrows()
+    {
+        var keyDerivation = new Pbkdf2KeyDerivationFunction(new InMemoryKeyInputStorage());
+        var salt = CreateSalt();
+        var result = new byte[32];
+
+        Assert.Throws<ArgumentException>(() =>
+            keyDerivation.Derive(new byte[16], salt, MaterialIdentifier, Iterations, ServiceName, result));
+    }
 }

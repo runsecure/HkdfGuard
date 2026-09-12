@@ -36,8 +36,8 @@ public class Pbkdf2KeyDerivationFunction(IKeyInputStorage storage) : IKeyDerivat
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(keyMaterial);
-            CryptographicOperations.ZeroMemory(saltBytes);
+            ArrayUtility.ZeroMemory(keyMaterial);
+            ArrayUtility.ZeroMemory(saltBytes);
         }
     }
 

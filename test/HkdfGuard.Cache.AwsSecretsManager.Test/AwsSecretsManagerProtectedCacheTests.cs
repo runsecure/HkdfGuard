@@ -28,53 +28,52 @@ public class AwsSecretsManagerProtectedCacheTests
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
+    public void Decrypt_Bytes_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
     {
         var client = new FakeSecretsManagerClient(new Dictionary<string, string> { ["item"] = "secret value" });
         var cache = CreateCache(client);
 
         var result = new byte[32];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("secret value", System.Text.Encoding.UTF8.GetString(result, 0, written));
         Assert.Equal(1, client.GetSecretValueCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_Chars_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
+    public void Decrypt_Chars_WithExistingSecret_FetchesEncryptsAndReturnsPlaintext()
     {
         var client = new FakeSecretsManagerClient(new Dictionary<string, string> { ["item"] = "secret value" });
         var cache = CreateCache(client);
 
         var result = new char[32];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("secret value", new string(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_SecondCallForSameName_DoesNotFetchFromAwsAgain()
+    public void Decrypt_SecondCallForSameName_DoesNotFetchFromAwsAgain()
     {
         var client = new FakeSecretsManagerClient(new Dictionary<string, string> { ["item"] = "secret value" });
         var cache = CreateCache(client);
 
-        cache.TryDecrypt("item", new byte[32], out _);
-        cache.TryDecrypt("item", new byte[32], out _);
+        cache.Decrypt("item", new byte[32]);
+        cache.Decrypt("item", new byte[32]);
 
         Assert.Equal(1, client.GetSecretValueCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_WithUnknownSecretId_ReturnsFalse()
+    public void Decrypt_WithUnknownSecretId_ReturnsZero()
     {
         var client = new FakeSecretsManagerClient(new Dictionary<string, string>());
         var cache = CreateCache(client);
 
-        var found = cache.TryDecrypt("missing", new byte[32], out var written);
+        var written = cache.Decrypt("missing", new byte[32]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
         Assert.Equal(1, client.GetSecretValueCallCount);
     }
@@ -104,7 +103,7 @@ public class AwsSecretsManagerProtectedCacheTests
     }
 
     [Fact]
-    public void TryDecrypt_WhenSecretHasNoSecretString_ThrowsNotSupportedException()
+    public void Decrypt_WhenSecretHasNoSecretString_ThrowsNotSupportedException()
     {
         var client = new FakeSecretsManagerClient(new Dictionary<string, string>())
         {
@@ -112,11 +111,11 @@ public class AwsSecretsManagerProtectedCacheTests
         };
         var cache = CreateCache(client);
 
-        Assert.Throws<NotSupportedException>(() => cache.TryDecrypt("item", new byte[32], out _));
+        Assert.Throws<NotSupportedException>(() => cache.Decrypt("item", new byte[32]));
     }
 
     [Fact]
-    public void TryDecrypt_WhenAwsThrowsUnexpectedError_RecordsExceptionAndThrows()
+    public void Decrypt_WhenAwsThrowsUnexpectedError_RecordsExceptionAndThrows()
     {
         var client = new FakeSecretsManagerClient(new Dictionary<string, string>())
         {
@@ -124,7 +123,7 @@ public class AwsSecretsManagerProtectedCacheTests
         };
         var cache = CreateCache(client);
 
-        Assert.Throws<InternalServiceErrorException>(() => cache.TryDecrypt("item", new byte[32], out _));
+        Assert.Throws<InternalServiceErrorException>(() => cache.Decrypt("item", new byte[32]));
     }
 
     [Fact]
@@ -136,17 +135,17 @@ public class AwsSecretsManagerProtectedCacheTests
 
         var result1 = new byte[32];
         var result2 = new byte[32];
-        var found1 = cache1.TryDecrypt("item", result1, out var written1);
-        var found2 = cache2.TryDecrypt("item", result2, out var written2);
+        var written1 = cache1.Decrypt("item", result1);
+        var written2 = cache2.Decrypt("item", result2);
 
-        Assert.True(found1);
-        Assert.True(found2);
+        Assert.True(written1 > 0);
+        Assert.True(written2 > 0);
         Assert.Equal("secret value", System.Text.Encoding.UTF8.GetString(result1, 0, written1));
         Assert.Equal("secret value", System.Text.Encoding.UTF8.GetString(result2, 0, written2));
     }
 
     [Fact]
-    public void TryDecrypt_WithSensitiveLoggingEnabled_StillPopulatesFromAws()
+    public void Decrypt_WithSensitiveLoggingEnabled_StillPopulatesFromAws()
     {
         var original = AwsSecretsManagerDiagnostics.EnableSensitiveLogging;
         try
@@ -157,9 +156,9 @@ public class AwsSecretsManagerProtectedCacheTests
             var cache = CreateCache(client);
 
             var result = new byte[32];
-            var found = cache.TryDecrypt("item", result, out var written);
+            var written = cache.Decrypt("item", result);
 
-            Assert.True(found);
+            Assert.True(written > 0);
             Assert.Equal("secret value", System.Text.Encoding.UTF8.GetString(result, 0, written));
         }
         finally

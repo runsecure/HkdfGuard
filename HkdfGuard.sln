@@ -48,6 +48,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HkdfGuard.Cache.GoogleSecre
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HkdfGuard.Cache.GoogleSecretManager.Test", "test\HkdfGuard.Cache.GoogleSecretManager.Test\HkdfGuard.Cache.GoogleSecretManager.Test.csproj", "{B0D1BAF4-1A67-4D9A-AAE4-DDFCD05DEEEE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionFolder", "SolutionFolder", "{F7D349E2-99F8-4573-BDC8-65360F226C6A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

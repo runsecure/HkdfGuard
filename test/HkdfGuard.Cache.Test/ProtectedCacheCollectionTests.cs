@@ -26,18 +26,17 @@ public class ProtectedCacheCollectionTests
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_WithNoSources_ReturnsFalse()
+    public void Decrypt_Bytes_WithNoSources_ReturnsZero()
     {
         var collection = new ProtectedCacheCollection();
 
-        var found = collection.TryDecrypt("item", new byte[16], out var written);
+        var written = collection.Decrypt("item", new byte[16]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_ReturnsFromFirstSourceThatHasIt()
+    public void Decrypt_Bytes_ReturnsFromFirstSourceThatHasIt()
     {
         var first = CreateCache();
         var second = CreateCache();
@@ -47,14 +46,14 @@ public class ProtectedCacheCollectionTests
         var collection = new ProtectedCacheCollection().Add(first).Add(second);
 
         var result = new byte[32];
-        var found = collection.TryDecrypt("item", result, out var written);
+        var written = collection.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("from-first", System.Text.Encoding.UTF8.GetString(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_FallsThroughToLaterSourceWhenEarlierOnesLackTheName()
+    public void Decrypt_Bytes_FallsThroughToLaterSourceWhenEarlierOnesLackTheName()
     {
         var first = CreateCache();
         var second = CreateCache();
@@ -63,67 +62,65 @@ public class ProtectedCacheCollectionTests
         var collection = new ProtectedCacheCollection().Add(first).Add(second);
 
         var result = new byte[32];
-        var found = collection.TryDecrypt("item", result, out var written);
+        var written = collection.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("from-second", System.Text.Encoding.UTF8.GetString(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_WithNoSourceHavingTheName_ReturnsFalse()
+    public void Decrypt_Bytes_WithNoSourceHavingTheName_ReturnsZero()
     {
         var first = CreateCache();
         var second = CreateCache();
 
         var collection = new ProtectedCacheCollection().Add(first).Add(second);
 
-        var found = collection.TryDecrypt("missing", new byte[16], out var written);
+        var written = collection.Decrypt("missing", new byte[16]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
     }
 
     [Fact]
-    public void TryDecrypt_Chars_ReturnsFromFirstSourceThatHasIt()
+    public void Decrypt_Chars_ReturnsFromFirstSourceThatHasIt()
     {
         var first = CreateCache();
         var second = CreateCache();
-        first.Add("item", "from-first".AsSpan());
-        second.Add("item", "from-second".AsSpan());
+        first.Add("item", "from-first".ToCharArray());
+        second.Add("item", "from-second".ToCharArray());
 
         var collection = new ProtectedCacheCollection().Add(first).Add(second);
 
         var result = new char[32];
-        var found = collection.TryDecrypt("item", result, out var written);
+        var written = collection.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("from-first", new string(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_Chars_FallsThroughToLaterSourceWhenEarlierOnesLackTheName()
+    public void Decrypt_Chars_FallsThroughToLaterSourceWhenEarlierOnesLackTheName()
     {
         var first = CreateCache();
         var second = CreateCache();
-        second.Add("item", "from-second".AsSpan());
+        second.Add("item", "from-second".ToCharArray());
 
         var collection = new ProtectedCacheCollection().Add(first).Add(second);
 
         var result = new char[32];
-        var found = collection.TryDecrypt("item", result, out var written);
+        var written = collection.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal("from-second", new string(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_Chars_WithNoSourceHavingTheName_ReturnsFalse()
+    public void Decrypt_Chars_WithNoSourceHavingTheName_ReturnsZero()
     {
         var collection = new ProtectedCacheCollection().Add(CreateCache()).Add(CreateCache());
 
-        var found = collection.TryDecrypt("missing", new char[16], out var written);
+        var written = collection.Decrypt("missing", new char[16]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
     }
 
@@ -182,7 +179,7 @@ public class ProtectedCacheCollectionTests
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_WithSensitiveLoggingEnabled_StillRoundTrips()
+    public void Decrypt_Bytes_WithSensitiveLoggingEnabled_StillRoundTrips()
     {
         var original = CacheDiagnostics.EnableSensitiveLogging;
         try
@@ -194,9 +191,9 @@ public class ProtectedCacheCollectionTests
             var collection = new ProtectedCacheCollection().Add(source);
 
             var result = new byte[32];
-            var found = collection.TryDecrypt("item", result, out var written);
+            var written = collection.Decrypt("item", result);
 
-            Assert.True(found);
+            Assert.True(written > 0);
             Assert.Equal("top secret", System.Text.Encoding.UTF8.GetString(result, 0, written));
         }
         finally
@@ -206,7 +203,7 @@ public class ProtectedCacheCollectionTests
     }
 
     [Fact]
-    public void TryDecrypt_Chars_WithSensitiveLoggingEnabled_StillRoundTrips()
+    public void Decrypt_Chars_WithSensitiveLoggingEnabled_StillRoundTrips()
     {
         var original = CacheDiagnostics.EnableSensitiveLogging;
         try
@@ -214,13 +211,13 @@ public class ProtectedCacheCollectionTests
             CacheDiagnostics.EnableSensitiveLogging = true;
 
             var source = CreateCache();
-            source.Add("item", "top secret".AsSpan());
+            source.Add("item", "top secret".ToCharArray());
             var collection = new ProtectedCacheCollection().Add(source);
 
             var result = new char[32];
-            var found = collection.TryDecrypt("item", result, out var written);
+            var written = collection.Decrypt("item", result);
 
-            Assert.True(found);
+            Assert.True(written > 0);
             Assert.Equal("top secret", new string(result, 0, written));
         }
         finally
@@ -230,18 +227,18 @@ public class ProtectedCacheCollectionTests
     }
 
     [Fact]
-    public void TryDecrypt_Bytes_WhenASourceThrows_RecordsExceptionAndThrows()
+    public void Decrypt_Bytes_WhenASourceThrows_RecordsExceptionAndThrows()
     {
         var collection = new ProtectedCacheCollection().Add(new ThrowingReadOnlyCache(new InvalidOperationException("boom")));
 
-        Assert.Throws<InvalidOperationException>(() => collection.TryDecrypt("item", new byte[16], out _));
+        Assert.Throws<InvalidOperationException>(() => collection.Decrypt("item", new byte[16]));
     }
 
     [Fact]
-    public void TryDecrypt_Chars_WhenASourceThrows_RecordsExceptionAndThrows()
+    public void Decrypt_Chars_WhenASourceThrows_RecordsExceptionAndThrows()
     {
         var collection = new ProtectedCacheCollection().Add(new ThrowingReadOnlyCache(new InvalidOperationException("boom")));
 
-        Assert.Throws<InvalidOperationException>(() => collection.TryDecrypt("item", new char[16], out _));
+        Assert.Throws<InvalidOperationException>(() => collection.Decrypt("item", new char[16]));
     }
 }

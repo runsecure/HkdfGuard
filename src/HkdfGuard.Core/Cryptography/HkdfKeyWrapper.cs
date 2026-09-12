@@ -1,6 +1,6 @@
-using System.Security.Cryptography;
 using HkdfGuard.Core.Diagnostics;
 using HkdfGuard.Core.Primitives;
+using HkdfGuard.Core.Utilities;
 using HkdfGuard.Abstractions;
 
 namespace HkdfGuard.Core.Cryptography;
@@ -42,7 +42,7 @@ public class HkdfKeyWrapper(IKeyDerivationFunction keyDerivation,
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(key);
+            ArrayUtility.ZeroMemory(key);
         }
     }
 }

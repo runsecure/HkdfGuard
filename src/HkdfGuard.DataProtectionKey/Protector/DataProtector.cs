@@ -1,6 +1,6 @@
-using System.Security.Cryptography;
 using System.Text;
 using HkdfGuard.Core.Primitives;
+using HkdfGuard.Core.Utilities;
 using HkdfGuard.DataProtectionKey.Diagnostics;
 using HkdfGuard.DataProtectionKey.KeyTracking;
 using HkdfGuard.Abstractions;
@@ -78,7 +78,7 @@ internal sealed class DataProtector(
             }
             finally
             {
-                CryptographicOperations.ZeroMemory(plaintextBytes);
+                ArrayUtility.ZeroMemory(plaintextBytes);
             }
         }
         catch (Exception ex)

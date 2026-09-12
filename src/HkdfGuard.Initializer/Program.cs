@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using HkdfGuard.Abstractions;
 using HkdfGuard.Core.Cryptography;
 using HkdfGuard.Core.Primitives;
+using HkdfGuard.Core.Utilities;
 
 const string usage = "Usage: HkdfGuard.Initializer <key-file-path> --material-identifier <int> --iterations <int> [--service-name <name>]";
 
@@ -126,5 +127,5 @@ try
 }
 finally
 {
-    CryptographicOperations.ZeroMemory(plaintextKey);
+    ArrayUtility.ZeroMemory(plaintextKey);
 }

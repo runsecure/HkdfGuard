@@ -126,4 +126,39 @@ public class AesGcmCipherTests
 
         Assert.Throws<ArgumentException>(() => cipher.Decrypt(zeroKey, ciphertext, result));
     }
+
+    [Fact]
+    public void Encrypt_WithAllZeroPlaintext_Throws()
+    {
+        var cipher = new AesGcmCipher();
+        var key = RandomNumberGenerator.GetBytes(32);
+        var zeroPlaintext = new byte[11];
+        var encrypted = new byte[zeroPlaintext.Length + 28];
+
+        Assert.Throws<ArgumentException>(() => cipher.Encrypt(key, zeroPlaintext, encrypted));
+    }
+
+    [Fact]
+    public void Decrypt_WithNonZeroButTooShortCiphertext_Throws()
+    {
+        var cipher = new AesGcmCipher();
+        var key = RandomNumberGenerator.GetBytes(32);
+        var tooShort = RandomNumberGenerator.GetBytes(10); // non-zero, but shorter than nonce + tag
+        var result = new byte[4];
+
+        Assert.Throws<ArgumentException>(() => cipher.Decrypt(key, tooShort, result));
+    }
+
+    [Fact]
+    public void Decrypt_WithTooSmallResultBuffer_Throws()
+    {
+        var cipher = new AesGcmCipher();
+        var key = RandomNumberGenerator.GetBytes(32);
+        var plaintext = "hello world"u8.ToArray();
+        var encrypted = new byte[plaintext.Length + 28];
+        cipher.Encrypt((byte[])key.Clone(), plaintext, encrypted);
+
+        var tooSmall = new byte[plaintext.Length - 1];
+        Assert.Throws<ArgumentException>(() => cipher.Decrypt((byte[])key.Clone(), encrypted, tooSmall));
+    }
 }

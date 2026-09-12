@@ -26,7 +26,11 @@ public static class ArrayUtility
 
     public static void ZeroMemory(Span<byte> input)
     {
-        CryptographicOperations.ZeroMemory(input);
+        for (var i = 0; i < input.Length; i++)
+        {
+            input[i] = 0;
+        }
+        input.Clear();
     }
     
     public static void ZeroMemory(Span<char> input)
@@ -35,5 +39,6 @@ public static class ArrayUtility
         {
             input[i] = '\0';
         }
+        input.Clear();
     }
 }

@@ -16,60 +16,58 @@ public class ProtectedCacheBaseTests
     }
 
     [Fact]
-    public void TryDecrypt_OnMiss_CallsTryPopulate_AndReturnsPopulatedValue()
+    public void Decrypt_OnMiss_CallsTryPopulate_AndReturnsPopulatedValue()
     {
         var cache = CreateCache();
         cache.OnTryPopulate = name =>
         {
-            cache.Seed(name, "populated value");
+            cache.Seed(name, "populated value".ToCharArray());
             return true;
         };
 
         var result = new byte[32];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal(1, cache.TryPopulateCallCount);
         Assert.Equal("populated value", System.Text.Encoding.UTF8.GetString(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_WhenAlreadyCached_DoesNotCallTryPopulate()
+    public void Decrypt_WhenAlreadyCached_DoesNotCallTryPopulate()
     {
         var cache = CreateCache();
-        cache.Seed("item", "already cached");
+        cache.Seed("item", "already cached".ToCharArray());
         cache.OnTryPopulate = _ => throw new InvalidOperationException("should not be called");
 
         var result = new byte[32];
-        var found = cache.TryDecrypt("item", result, out var written);
+        var written = cache.Decrypt("item", result);
 
-        Assert.True(found);
+        Assert.True(written > 0);
         Assert.Equal(0, cache.TryPopulateCallCount);
         Assert.Equal("already cached", System.Text.Encoding.UTF8.GetString(result, 0, written));
     }
 
     [Fact]
-    public void TryDecrypt_WhenTryPopulateReturnsFalse_ReturnsFalse()
+    public void Decrypt_WhenTryPopulateReturnsFalse_ReturnsZero()
     {
         var cache = CreateCache();
         cache.OnTryPopulate = _ => false;
 
-        var found = cache.TryDecrypt("item", new byte[32], out var written);
+        var written = cache.Decrypt("item", new byte[32]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
         Assert.Equal(1, cache.TryPopulateCallCount);
     }
 
     [Fact]
-    public void TryDecrypt_WhenTryPopulateReturnsTrueButDoesNotActuallyPopulate_ReturnsFalse()
+    public void Decrypt_WhenTryPopulateReturnsTrueButDoesNotActuallyPopulate_ReturnsZero()
     {
         var cache = CreateCache();
         cache.OnTryPopulate = _ => true; // lies - never calls Seed
 
-        var found = cache.TryDecrypt("item", new byte[32], out var written);
+        var written = cache.Decrypt("item", new byte[32]);
 
-        Assert.False(found);
         Assert.Equal(0, written);
     }
 
@@ -79,7 +77,7 @@ public class ProtectedCacheBaseTests
         var cache = CreateCache();
         cache.OnTryPopulate = name =>
         {
-            cache.Seed(name, "populated value");
+            cache.Seed(name, "populated value".ToCharArray());
             return true;
         };
 
@@ -97,8 +95,8 @@ public class ProtectedCacheBaseTests
         var dataProtectionKey = new KeyWrappedDataProtectionKey(wrapper, new AesGcmCipher());
         var cache = new PopulatingCache(dataProtectionKey) { OnTryPopulate = null };
 
-        var found = cache.TryDecrypt("item", new byte[16], out _);
+        var written = cache.Decrypt("item", new byte[16]);
 
-        Assert.False(found);
+        Assert.Equal(0, written);
     }
 }

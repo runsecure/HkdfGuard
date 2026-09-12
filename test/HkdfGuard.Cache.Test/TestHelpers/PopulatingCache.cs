@@ -12,7 +12,7 @@ internal sealed class PopulatingCache(IDataProtectionKey dataProtectionKey) : Pr
     public int TryPopulateCallCount { get; private set; }
     public Func<string, bool>? OnTryPopulate { get; set; }
 
-    public void Seed(string name, ReadOnlySpan<char> plaintext) => Cache[name] = EncryptChars(plaintext);
+    public void Seed(string name, Span<char> plaintext) => Cache[name] = EncryptChars(plaintext);
 
     protected override bool TryPopulate(string name)
     {
