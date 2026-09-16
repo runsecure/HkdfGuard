@@ -43,7 +43,7 @@ public class DataProtectionKeyBenchmarks
             .WithServiceName(ServiceName)
             .WithKeyDerivation(new Pbkdf2KeyDerivationFunction(new InMemoryKeyInputStorage()))
             .WithCipher(new AesGcmCipher())
-            .WithHash(new HmacSha256Hash());
+            .WithHash(new HmacSha512Hash());
 
     [GlobalSetup]
     public void GlobalSetup()
@@ -54,7 +54,7 @@ public class DataProtectionKeyBenchmarks
             .Build();
 
         _dataProtectionKey = new EphemeralDataProtectionKey(
-            keySpec, new HkdfKeyWrapperFactory(), new KeyProtectorFactory());
+            keySpec, new HkdfKeyWrapperFactory());
 
         _plaintextTemplate = RandomNumberGenerator.GetBytes(PlaintextSize);
         _plaintextScratch = new byte[PlaintextSize];
@@ -73,7 +73,6 @@ public class DataProtectionKeyBenchmarks
         var ring = new KeyRingBuilder()
             .WithCryptoRecipe(CreateRecipe())
             .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
-            .WithKeyProtectorFactory(new KeyProtectorFactory())
             .AddEphemeralKey(version: 1, materialIdentifier: 1, iterations: Iterations)
             .Build();
 

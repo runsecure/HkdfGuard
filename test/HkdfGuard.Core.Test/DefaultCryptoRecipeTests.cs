@@ -31,11 +31,11 @@ public class DefaultCryptoRecipeTests
     }
 
     [Fact]
-    public void Create_UsesHmacSha256Hash()
+    public void Create_UsesHmacSha512Hash()
     {
         var spec = DefaultCryptoRecipe.Create("svc", 1, 1);
 
-        Assert.IsType<HmacSha256Hash>(spec.Hash);
+        Assert.IsType<HmacSha512Hash>(spec.Hash);
     }
 
     [Fact]
@@ -45,20 +45,8 @@ public class DefaultCryptoRecipeTests
     }
 
     [Fact]
-    public void KeyProtectorFactory_ReturnsKeyProtectorFactory()
-    {
-        Assert.IsType<KeyProtectorFactory>(DefaultCryptoRecipe.KeyProtectorFactory);
-    }
-
-    [Fact]
     public void KeyWrapperFactory_IsASingleton()
     {
         Assert.Same(DefaultCryptoRecipe.KeyWrapperFactory, DefaultCryptoRecipe.KeyWrapperFactory);
-    }
-
-    [Fact]
-    public void KeyProtectorFactory_IsASingleton()
-    {
-        Assert.Same(DefaultCryptoRecipe.KeyProtectorFactory, DefaultCryptoRecipe.KeyProtectorFactory);
     }
 }

@@ -192,30 +192,6 @@ public class HkdfGuardOptionsValidatorTests
         Assert.Contains(nameof(HkdfGuardOptions.EphemeralKeys), result.FailureMessage);
     }
 
-    [Fact]
-    public void Validate_WithEphemeralKeyAndMissingKeyProtectorFactory_Fails()
-    {
-        var options = CreateValidOptions();
-        options.KeyProtectorFactory = "";
-        options.EphemeralKeys.Add(new EphemeralKeyOptions { Version = 2, MaterialIdentifier = 1, Iterations = 1 });
-
-        var result = _validator.Validate(null, options);
-
-        Assert.True(result.Failed);
-        Assert.Contains(nameof(HkdfGuardOptions.KeyProtectorFactory), result.FailureMessage);
-    }
-
-    [Fact]
-    public void Validate_WithMissingKeyProtectorFactoryButNoEphemeralKeys_Succeeds()
-    {
-        var options = CreateValidOptions();
-        options.KeyProtectorFactory = "";
-
-        var result = _validator.Validate(null, options);
-
-        Assert.False(result.Failed);
-    }
-
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

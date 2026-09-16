@@ -23,13 +23,13 @@ public class EphemeralDataProtectionKeyTests
             .WithServiceName(ServiceName)
             .WithKeyDerivation(new Pbkdf2KeyDerivationFunction(storage))
             .WithCipher(new AesGcmCipher())
-            .WithHash(new HmacSha256Hash())
+            .WithHash(new HmacSha512Hash())
             .WithMaterialIdentifier(materialIdentifier)
             .WithIterations(iterations)
             .Build();
 
     private static EphemeralDataProtectionKey CreateKey(IKeyInputStorage storage, int materialIdentifier = 1, int iterations = 1)
-        => new(BuildSpec(storage, materialIdentifier, iterations), new HkdfKeyWrapperFactory(), new KeyProtectorFactory());
+        => new(BuildSpec(storage, materialIdentifier, iterations), new HkdfKeyWrapperFactory());
 
     [Fact]
     public void EncryptDecrypt_RoundTrips()
@@ -124,12 +124,11 @@ public class EphemeralDataProtectionKeyTests
     }
 
     [Fact]
-    public void Encrypt_WhenKeyProtectorFactoryFails_RecordsExceptionAndThrows()
+    public void Encrypt_WhenKeyWrapperFactoryFails_RecordsExceptionAndThrows()
     {
         var key = new EphemeralDataProtectionKey(
             BuildSpec(new InMemoryKeyInputStorage()),
-            new HkdfKeyWrapperFactory(),
-            new ThrowingKeyProtectorFactory(new InvalidOperationException("protector unavailable")));
+            new ThrowingKeyWrapperFactory(new InvalidOperationException("wrapper unavailable")));
 
         Assert.Throws<InvalidOperationException>(() => key.Encrypt("top secret"u8.ToArray()));
     }
@@ -153,9 +152,9 @@ public class EphemeralDataProtectionKeyTests
     [Fact]
     public void Encrypt_WithCustomBlobSpec_StillRoundTrips()
     {
-        var customBlobSpec = new KeyBlobSpec(saltLength: 32, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
+        var customBlobSpec = new KeyBlobSpec(saltLength: 32, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 64);
         var key = new EphemeralDataProtectionKey(
-            BuildSpec(new InMemoryKeyInputStorage()), new HkdfKeyWrapperFactory(), new KeyProtectorFactory(), customBlobSpec);
+            BuildSpec(new InMemoryKeyInputStorage()), new HkdfKeyWrapperFactory(), customBlobSpec);
 
         var plaintext = "top secret"u8.ToArray();
         var expected = (byte[])plaintext.Clone();

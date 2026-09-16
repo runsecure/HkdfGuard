@@ -10,9 +10,8 @@ public class HkdfGuardOptionsTests
         Assert.Equal(string.Empty, options.ServiceName);
         Assert.Equal("Pbkdf2", options.KeyDerivation);
         Assert.Equal("AesGcm", options.Cipher);
-        Assert.Equal("HmacSha256", options.Hash);
+        Assert.Equal("HmacSha512", options.Hash);
         Assert.Equal("Hkdf", options.KeyWrapperFactory);
-        Assert.Equal("Default", options.KeyProtectorFactory);
         Assert.Empty(options.KeyFiles);
         Assert.Empty(options.EphemeralKeys);
     }
@@ -26,8 +25,7 @@ public class HkdfGuardOptionsTests
             KeyDerivation = "Custom",
             Cipher = "Custom",
             Hash = "Custom",
-            KeyWrapperFactory = "Custom",
-            KeyProtectorFactory = "Custom"
+            KeyWrapperFactory = "Custom"
         };
 
         Assert.Equal("svc", options.ServiceName);
@@ -35,7 +33,6 @@ public class HkdfGuardOptionsTests
         Assert.Equal("Custom", options.Cipher);
         Assert.Equal("Custom", options.Hash);
         Assert.Equal("Custom", options.KeyWrapperFactory);
-        Assert.Equal("Custom", options.KeyProtectorFactory);
     }
 
     [Fact]

@@ -40,6 +40,7 @@ public sealed class FlexibleKeyBlob : IKeyBlob
         Set(salt, encryptedKeySalt, encryptedKeyValue, signature);
     }
 
+    /// <inheritdoc/>
     public KeyBlobSpec Spec => _spec;
 
     public ReadOnlySpan<byte> Salt => _bytes.AsSpan(_saltOffset, _spec.SaltLength);
@@ -77,6 +78,7 @@ public sealed class FlexibleKeyBlob : IKeyBlob
         signature.CopyTo(_bytes.AsSpan(_signatureOffset, _spec.SignatureLength));
     }
 
+    /// <inheritdoc/>
     public bool TryLoad(ReadOnlySpan<byte> data)
     {
         if (data.Length != _spec.TotalLength)
@@ -86,6 +88,7 @@ public sealed class FlexibleKeyBlob : IKeyBlob
         return true;
     }
 
+    /// <inheritdoc/>
     public int Save(Span<byte> destination)
     {
         if (destination.Length < _spec.TotalLength)

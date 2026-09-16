@@ -17,14 +17,14 @@ public class KeyRingBuilderTests
 {
     private const string ServiceName = "keyring-builder-test-svc";
     private static readonly KeyBlobSpec DefaultBlobSpec = new(
-        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
+        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 64);
 
     private static ICryptoRecipeBuilder CreateRecipe(IKeyInputStorage storage)
         => new CryptoRecipeBuilder()
             .WithServiceName(ServiceName)
             .WithKeyDerivation(new Pbkdf2KeyDerivationFunction(storage))
             .WithCipher(new AesGcmCipher())
-            .WithHash(new HmacSha256Hash());
+            .WithHash(new HmacSha512Hash());
 
     private static IKeySpec BuildSpec(IKeyInputStorage storage, int materialIdentifier, int iterations)
         => CreateRecipe(storage)
@@ -36,7 +36,7 @@ public class KeyRingBuilderTests
     {
         var effectiveBlobSpec = blobSpec ?? DefaultBlobSpec;
         var salt = RandomNumberGenerator.GetBytes(effectiveBlobSpec.SaltLength);
-        var protector = new KeyProtectorFactory().Create(spec, salt);
+        var protector = new KeyProtector(spec, salt);
         var plaintextKey = RandomNumberGenerator.GetBytes(32);
 
         var blob = KeyBlobFactory.Create((byte[])plaintextKey.Clone(), protector, spec, effectiveBlobSpec, salt);
@@ -157,7 +157,7 @@ public class KeyRingBuilderTests
         using var tempDir = new TempDirectory();
         var storage = new InMemoryKeyInputStorage();
         const int materialIdentifier = 9, iterations = 1;
-        var customBlobSpec = new KeyBlobSpec(saltLength: 32, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
+        var customBlobSpec = new KeyBlobSpec(saltLength: 32, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 64);
 
         var spec = BuildSpec(storage, materialIdentifier, iterations);
         var path = ProtectKeyFile(tempDir, "v1.key", spec, customBlobSpec);
@@ -178,7 +178,7 @@ public class KeyRingBuilderTests
         using var tempDir = new TempDirectory();
         var storage = new InMemoryKeyInputStorage();
         const int materialIdentifier = 10, iterations = 1;
-        var customBlobSpec = new KeyBlobSpec(saltLength: 32, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
+        var customBlobSpec = new KeyBlobSpec(saltLength: 32, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 64);
 
         var spec = BuildSpec(storage, materialIdentifier, iterations);
         var path = ProtectKeyFile(tempDir, "v1.key", spec, customBlobSpec);
@@ -194,19 +194,6 @@ public class KeyRingBuilderTests
     }
 
     [Fact]
-    public void Build_WithEphemeralKeyWithoutKeyProtectorFactory_ThrowsInvalidOperationException()
-    {
-        var storage = new InMemoryKeyInputStorage();
-
-        var builder = new KeyRingBuilder()
-            .WithCryptoRecipe(CreateRecipe(storage))
-            .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
-            .AddEphemeralKey(1, materialIdentifier: 1, iterations: 1);
-
-        Assert.Throws<InvalidOperationException>(() => builder.Build());
-    }
-
-    [Fact]
     public void Build_WithEphemeralKey_ProducesWorkingKeyRing()
     {
         var storage = new InMemoryKeyInputStorage();
@@ -214,7 +201,6 @@ public class KeyRingBuilderTests
         var ring = new KeyRingBuilder()
             .WithCryptoRecipe(CreateRecipe(storage))
             .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
-            .WithKeyProtectorFactory(new KeyProtectorFactory())
             .AddEphemeralKey(1, materialIdentifier: 1, iterations: 1)
             .Build();
 
@@ -238,7 +224,6 @@ public class KeyRingBuilderTests
         var ring = new KeyRingBuilder()
             .WithCryptoRecipe(CreateRecipe(storage))
             .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
-            .WithKeyProtectorFactory(new KeyProtectorFactory())
             .AddKeyFile(1, path1, materialIdentifier: 1, iterations: 1)
             .AddEphemeralKey(2, materialIdentifier: 2, iterations: 1)
             .Build();
@@ -261,7 +246,6 @@ public class KeyRingBuilderTests
         var builder = new KeyRingBuilder()
             .WithCryptoRecipe(CreateRecipe(storage))
             .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
-            .WithKeyProtectorFactory(new KeyProtectorFactory())
             .AddKeyFile(1, path1, materialIdentifier: 1, iterations: 1)
             .AddEphemeralKey(1, materialIdentifier: 2, iterations: 1);
 
@@ -276,7 +260,6 @@ public class KeyRingBuilderTests
         var ring = new KeyRingBuilder()
             .WithCryptoRecipe(CreateRecipe(storage))
             .WithKeyWrapperFactory(new HkdfKeyWrapperFactory())
-            .WithKeyProtectorFactory(new KeyProtectorFactory())
             .AddEphemeralKey(1, materialIdentifier: 1, iterations: 1)
             .AddEphemeralKey(2, materialIdentifier: 2, iterations: 1)
             .Build();

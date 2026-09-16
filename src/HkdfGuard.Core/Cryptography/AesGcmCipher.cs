@@ -11,9 +11,11 @@ public class AesGcmCipher : ISymmetricCipher
     private const int TagSize = 16;
     private const int NonceSize = 12;
 
+    /// <inheritdoc/>
     public int Encrypt(Span<byte> key, Span<byte> plaintext, Span<byte> result)
         => Encrypt(key, plaintext, AdditionalAuthData.Empty, result);
 
+    /// <inheritdoc/>
     public int Encrypt(Span<byte> key, Span<byte> plaintext, IAdditionalAuthData aad, Span<byte> result)
     {
         using var activity = HkdfDiagnostics.ActivitySource.StartActivity("AesGcmCipher.Encrypt");
@@ -38,7 +40,7 @@ public class AesGcmCipher : ISymmetricCipher
     }
 
     //Pass to a separate method to convert the key to a ReadOnlySpan for the duration of encryption
-    private int CoreEncrypt(ReadOnlySpan<byte> key, Span<byte> plaintext, ReadOnlySpan<byte> aad, Span<byte> result)
+    private int CoreEncrypt(ReadOnlySpan<byte> key, ReadOnlySpan<byte> plaintext, ReadOnlySpan<byte> aad, Span<byte> result)
     {
         if (ArrayUtility.IsNullOrEmpty(key))
             throw new ArgumentException("AES key must not be empty or all zero.", nameof(key));
@@ -62,9 +64,11 @@ public class AesGcmCipher : ISymmetricCipher
         return NonceSize + plaintext.Length + TagSize;
     }
 
+    /// <inheritdoc/>
     public int Decrypt(Span<byte> key, ReadOnlySpan<byte> ciphertext, Span<byte> result)
         => Decrypt(key, ciphertext, AdditionalAuthData.Empty, result);
 
+    /// <inheritdoc/>
     public int Decrypt(Span<byte> key, ReadOnlySpan<byte> ciphertext, IAdditionalAuthData aad, Span<byte> result)
     {
         using var activity = HkdfDiagnostics.ActivitySource.StartActivity("AesGcmCipher.Decrypt");

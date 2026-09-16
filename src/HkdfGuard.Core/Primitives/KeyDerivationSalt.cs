@@ -41,5 +41,6 @@ public sealed class KeyDerivationSalt : IKeyDerivationSalt
             throw new ArgumentException("Salt length must be a multiple of 32 bytes.", nameof(salt));
     }
 
+    /// <inheritdoc/>
     public ReadOnlySpan<byte> AsSpan() => _bytes;
 }

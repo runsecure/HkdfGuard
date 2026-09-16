@@ -4,10 +4,11 @@ namespace HkdfGuard.Abstractions;
 /// Fluent builder that chains together the modules used for actual encryption (key derivation,
 /// symmetric cipher, hash - key storage is an internal dependency of key derivation, not a
 /// separately configurable module here), and emits an IKeySpec - a reusable recipe describing
-/// how keys for this service should be derived/protected. Minting an IKeyWrapper or
-/// IKeyProtector from the resulting IKeySpec is IKeyWrapperFactory/IKeyProtectorFactory's job,
-/// held and used separately from this builder. Depends only on interfaces, so it isn't tied to
-/// any concrete crypto implementation and can be reused outside this library.
+/// how keys for this service should be derived/protected. Minting an IKeyWrapper from the
+/// resulting IKeySpec is IKeyWrapperFactory's job, held and used separately from this builder;
+/// an IKeyProtector is instead constructed directly from the IKeySpec plus a salt. Depends only
+/// on interfaces, so it isn't tied to any concrete crypto implementation and can be reused
+/// outside this library.
 /// </summary>
 public interface ICryptoRecipeBuilder
 {

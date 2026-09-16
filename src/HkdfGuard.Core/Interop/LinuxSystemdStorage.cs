@@ -81,11 +81,15 @@ internal class LinuxSystemdStorage(string credsDir = "/run/credentials") : IKeyI
             && TryLoadFromKeyRing(keyIndex, destination))
             return true;
 
-        if (TryReadViaPipe(index, destination))
+        // Gated the same way Generate gates WriteEncrypted - a container never has a real
+        // systemd managing /run/credentials, so this must never shell out to systemd-creds
+        // there (it wouldn't just fail, TryReadViaPipe would throw since the binary itself is
+        // absent) and instead relies on the kernel keyring alone.
+        if (IsSystemdCredsSupported() && TryReadViaPipe(index, destination))
         {
             StoreToKeyRing(index, destination);
         }
-        
+
         if (LinuxKeyRingTracker.TryGetValue(index, out keyIndex)
             && TryLoadFromKeyRing(keyIndex, destination))
             return true;

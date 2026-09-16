@@ -3,8 +3,8 @@ namespace HkdfGuard.Abstractions;
 /// <summary>
 /// A configured recipe of modules (key derivation, cipher, hash, service name) plus the fixed
 /// material identifier and iteration count this service uses to protect keys. Pure configuration
-/// data - minting an IKeyWrapper or IKeyProtector from it is IKeyWrapperFactory/
-/// IKeyProtectorFactory's job, not this interface's.
+/// data - minting an IKeyWrapper from it is IKeyWrapperFactory's job, not this interface's; an
+/// IKeyProtector is instead constructed directly from this spec plus a salt (see KeyProtector).
 /// </summary>
 public interface IKeySpec
 {

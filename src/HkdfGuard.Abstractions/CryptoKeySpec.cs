@@ -2,8 +2,9 @@ namespace HkdfGuard.Abstractions;
 
 /// <summary>
 /// Default IKeySpec, produced by CryptoRecipeBuilder. Pure configuration data - minting an
-/// IKeyWrapper or IKeyProtector from it is IKeyWrapperFactory/IKeyProtectorFactory's job, not
-/// this class's, so it carries no factory dependency of its own.
+/// IKeyWrapper from it is IKeyWrapperFactory's job, not this class's; an IKeyProtector is instead
+/// constructed directly from this spec plus a salt (see KeyProtector), so it carries no factory
+/// dependency of its own either way.
 /// </summary>
 public sealed class CryptoKeySpec(
     IKeyDerivationFunction keyDerivation,

@@ -1,0 +1,7 @@
+**/bin/
+**/obj/
+**/BenchmarkDotNet.Artifacts/
+.git/
+.idea/
+.vs/
+*.user

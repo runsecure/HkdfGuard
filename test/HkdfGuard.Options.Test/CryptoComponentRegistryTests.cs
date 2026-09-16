@@ -47,11 +47,11 @@ public class CryptoComponentRegistryTests
     }
 
     [Fact]
-    public void CreateHash_BuiltInHmacSha256_ResolvesCorrectType()
+    public void CreateHash_BuiltInHmacSha512_ResolvesCorrectType()
     {
         var registry = new CryptoComponentRegistry();
 
-        Assert.IsType<HmacSha256Hash>(registry.CreateHash("HmacSha256"));
+        Assert.IsType<HmacSha512Hash>(registry.CreateHash("HmacSha512"));
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class CryptoComponentRegistryTests
 
         var ex = Assert.Throws<NotSupportedException>(() => registry.CreateHash("DoesNotExist"));
         Assert.Contains("DoesNotExist", ex.Message);
-        Assert.Contains("HmacSha256", ex.Message);
+        Assert.Contains("HmacSha512", ex.Message);
     }
 
     [Fact]
@@ -134,11 +134,11 @@ public class CryptoComponentRegistryTests
     public void RegisterHash_WithExistingBuiltInName_ReplacesIt()
     {
         var registry = new CryptoComponentRegistry();
-        IHash replacement = new HmacSha256Hash();
+        IHash replacement = new HmacSha512Hash();
 
-        registry.RegisterHash("HmacSha256", () => replacement);
+        registry.RegisterHash("HmacSha512", () => replacement);
 
-        Assert.Same(replacement, registry.CreateHash("HmacSha256"));
+        Assert.Same(replacement, registry.CreateHash("HmacSha512"));
     }
 
     [Fact]
@@ -150,48 +150,6 @@ public class CryptoComponentRegistryTests
         registry.RegisterKeyWrapperFactory("Hkdf", () => replacement);
 
         Assert.Same(replacement, registry.CreateKeyWrapperFactory("Hkdf"));
-    }
-
-    [Fact]
-    public void CreateKeyProtectorFactory_BuiltInDefault_ResolvesCorrectType()
-    {
-        var registry = new CryptoComponentRegistry();
-
-        Assert.IsType<KeyProtectorFactory>(registry.CreateKeyProtectorFactory("Default"));
-    }
-
-    [Fact]
-    public void CreateKeyProtectorFactory_UnknownName_ThrowsNotSupportedException()
-    {
-        var registry = new CryptoComponentRegistry();
-
-        var ex = Assert.Throws<NotSupportedException>(() => registry.CreateKeyProtectorFactory("DoesNotExist"));
-        Assert.Contains("DoesNotExist", ex.Message);
-        Assert.Contains("Default", ex.Message);
-    }
-
-    [Fact]
-    public void RegisterKeyProtectorFactory_WithExistingBuiltInName_ReplacesIt()
-    {
-        var registry = new CryptoComponentRegistry();
-        IKeyProtectorFactory replacement = new KeyProtectorFactory();
-
-        registry.RegisterKeyProtectorFactory("Default", () => replacement);
-
-        Assert.Same(replacement, registry.CreateKeyProtectorFactory("Default"));
-    }
-
-    [Fact]
-    public void RegisterKeyProtectorFactory_WithNewName_AddsOptionAlongsideBuiltIns()
-    {
-        var registry = new CryptoComponentRegistry();
-        registry.RegisterKeyProtectorFactory("MyCustomProtector", () => new KeyProtectorFactory());
-
-        var custom = registry.CreateKeyProtectorFactory("MyCustomProtector");
-        var builtIn = registry.CreateKeyProtectorFactory("Default");
-
-        Assert.IsType<KeyProtectorFactory>(custom);
-        Assert.IsType<KeyProtectorFactory>(builtIn);
     }
 
     [Fact]

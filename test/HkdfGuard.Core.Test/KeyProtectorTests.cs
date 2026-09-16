@@ -17,7 +17,15 @@ public class KeyProtectorTests
         var keyDerivation = new Pbkdf2KeyDerivationFunction(new InMemoryKeyInputStorage());
         var cipher = new AesGcmCipher();
         var salt = RandomNumberGenerator.GetBytes(64);
-        var protector = new KeyProtector(keyDerivation, cipher, salt, MaterialIdentifier, Iterations, ServiceName);
+        var spec = new CryptoRecipeBuilder()
+            .WithServiceName(ServiceName)
+            .WithKeyDerivation(keyDerivation)
+            .WithCipher(cipher)
+            .WithHash(new HmacSha512Hash())
+            .WithMaterialIdentifier(MaterialIdentifier)
+            .WithIterations(Iterations)
+            .Build();
+        var protector = new KeyProtector(spec, salt);
         return (protector, keyDerivation, cipher, salt);
     }
 

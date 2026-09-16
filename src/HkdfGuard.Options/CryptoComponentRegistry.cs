@@ -6,7 +6,7 @@ namespace HkdfGuard.Options;
 
 /// <summary>
 /// Maps the short string keys used in HkdfGuardOptions to actual crypto component instances.
-/// Pre-seeded with this library's built-in implementations (Pbkdf2/AesGcm/HmacSha256/Hkdf), but
+/// Pre-seeded with this library's built-in implementations (Pbkdf2/AesGcm/HmacSha512/Hkdf), but
 /// instance-based and mutable rather than a fixed set - other developers can Register their own
 /// factory under a new name to add an option, or under an existing name (e.g. "AesGcm") to
 /// replace what that name resolves to, without forking this library. Registration is a
@@ -21,15 +21,13 @@ public sealed class CryptoComponentRegistry
     private readonly Dictionary<string, Func<ISymmetricCipher>> _ciphers = new();
     private readonly Dictionary<string, Func<IHash>> _hashes = new();
     private readonly Dictionary<string, Func<IKeyWrapperFactory>> _keyWrapperFactories = new();
-    private readonly Dictionary<string, Func<IKeyProtectorFactory>> _keyProtectorFactories = new();
 
     public CryptoComponentRegistry()
     {
         RegisterKeyDerivation("Pbkdf2", serviceName => new Pbkdf2KeyDerivationFunction(KeyInputStorageFactory.Create(serviceName)));
         RegisterCipher("AesGcm", () => new AesGcmCipher());
-        RegisterHash("HmacSha256", () => new HmacSha256Hash());
+        RegisterHash("HmacSha512", () => new HmacSha512Hash());
         RegisterKeyWrapperFactory("Hkdf", () => new HkdfKeyWrapperFactory());
-        RegisterKeyProtectorFactory("Default", () => new KeyProtectorFactory());
     }
 
     /// <summary>
@@ -60,13 +58,6 @@ public sealed class CryptoComponentRegistry
     public void RegisterKeyWrapperFactory(string name, Func<IKeyWrapperFactory> factory)
         => _keyWrapperFactories[name] = factory;
 
-    /// <summary>
-    /// Registers a factory for an IKeyProtectorFactory under name, adding a new option or
-    /// replacing an existing one (including a built-in) if name is already registered.
-    /// </summary>
-    public void RegisterKeyProtectorFactory(string name, Func<IKeyProtectorFactory> factory)
-        => _keyProtectorFactories[name] = factory;
-
     public IKeyDerivationFunction CreateKeyDerivation(string name, string serviceName)
         => Resolve(_keyDerivations, name, "KeyDerivation")(serviceName);
 
@@ -78,9 +69,6 @@ public sealed class CryptoComponentRegistry
 
     public IKeyWrapperFactory CreateKeyWrapperFactory(string name)
         => Resolve(_keyWrapperFactories, name, "KeyWrapperFactory")();
-
-    public IKeyProtectorFactory CreateKeyProtectorFactory(string name)
-        => Resolve(_keyProtectorFactories, name, "KeyProtectorFactory")();
 
     private static TFactory Resolve<TFactory>(Dictionary<string, TFactory> registrations, string name, string category)
         where TFactory : Delegate

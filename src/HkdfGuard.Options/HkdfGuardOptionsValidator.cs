@@ -71,9 +71,6 @@ public sealed class HkdfGuardOptionsValidator : IValidateOptions<HkdfGuardOption
         }
         else
         {
-            if (options.EphemeralKeys.Count > 0 && string.IsNullOrWhiteSpace(options.KeyProtectorFactory))
-                failures.Add($"{nameof(HkdfGuardOptions.KeyProtectorFactory)} is required when {nameof(HkdfGuardOptions.EphemeralKeys)} is non-empty.");
-
             for (var i = 0; i < options.EphemeralKeys.Count; i++)
             {
                 var ephemeralKey = options.EphemeralKeys[i];

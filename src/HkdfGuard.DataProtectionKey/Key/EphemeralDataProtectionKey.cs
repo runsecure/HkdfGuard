@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using HkdfGuard.Abstractions;
+using HkdfGuard.Core.Cryptography;
 using HkdfGuard.Core.Primitives;
 using HkdfGuard.DataProtectionKey.Diagnostics;
 
@@ -16,18 +17,17 @@ namespace HkdfGuard.DataProtectionKey.Key;
 public sealed class EphemeralDataProtectionKey(
     IKeySpec keySpec,
     IKeyWrapperFactory keyWrapperFactory,
-    IKeyProtectorFactory keyProtectorFactory,
     KeyBlobSpec? blobSpec = null) : IDataProtectionKey
 {
     private static readonly KeyBlobSpec DefaultBlobSpec = new(
-        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
+        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 64);
 
     private readonly Lazy<IDataProtectionKey> _inner = new(
-        () => CreateInner(keySpec, keyWrapperFactory, keyProtectorFactory, blobSpec ?? DefaultBlobSpec),
+        () => CreateInner(keySpec, keyWrapperFactory, blobSpec ?? DefaultBlobSpec),
         LazyThreadSafetyMode.ExecutionAndPublication);
 
     private static IDataProtectionKey CreateInner(
-        IKeySpec keySpec, IKeyWrapperFactory keyWrapperFactory, IKeyProtectorFactory keyProtectorFactory, KeyBlobSpec blobSpec)
+        IKeySpec keySpec, IKeyWrapperFactory keyWrapperFactory, KeyBlobSpec blobSpec)
     {
         using var activity = DataProtectionDiagnostics.ActivitySource.StartActivity("EphemeralDataProtectionKey.Initialize");
         try
@@ -36,7 +36,7 @@ public sealed class EphemeralDataProtectionKey(
             RandomNumberGenerator.Fill(plaintextKey);
 
             var salt = RandomNumberGenerator.GetBytes(blobSpec.SaltLength);
-            var protector = keyProtectorFactory.Create(keySpec, salt);
+            var protector = new KeyProtector(keySpec, salt);
 
             // Built and signed entirely in memory - never saved to or loaded from a file.
             var blob = KeyBlobFactory.Create(plaintextKey, protector, keySpec, blobSpec, salt);

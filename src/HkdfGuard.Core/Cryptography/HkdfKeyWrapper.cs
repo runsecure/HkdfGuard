@@ -19,9 +19,11 @@ public class HkdfKeyWrapper(IKeyDerivationFunction keyDerivation,
     string serviceName)
  : IKeyWrapper
 {
+    /// <inheritdoc/>
     public int Decrypt(Span<byte> result)
         => Decrypt(AdditionalAuthData.Empty, result);
 
+    /// <inheritdoc/>
     public int Decrypt(IAdditionalAuthData aad, Span<byte> result)
     {
         using var activity = HkdfDiagnostics.ActivitySource.StartActivity("HkdfKeyWrapper.Decrypt");

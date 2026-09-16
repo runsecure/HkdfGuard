@@ -26,6 +26,7 @@ public sealed class AdditionalAuthData : IAdditionalAuthData
         Encoding.UTF8.GetBytes(data, _bytes);
     }
 
+    /// <inheritdoc/>
     public ReadOnlySpan<byte> AsSpan()
         => _bytes.Length == 0 ? ReadOnlySpan<byte>.Empty : _bytes;
 }

@@ -27,22 +27,15 @@ public sealed class HkdfGuardOptions
     public string Cipher { get; set; } = "AesGcm";
 
     /// <summary>
-    /// Selects the IHash implementation via CryptoComponentRegistry. Defaults to "HmacSha256".
+    /// Selects the IHash implementation via CryptoComponentRegistry. Defaults to "HmacSha512".
     /// </summary>
-    public string Hash { get; set; } = "HmacSha256";
+    public string Hash { get; set; } = "HmacSha512";
 
     /// <summary>
     /// Selects the IKeyWrapperFactory implementation via CryptoComponentRegistry. Defaults to
     /// "Hkdf".
     /// </summary>
     public string KeyWrapperFactory { get; set; } = "Hkdf";
-
-    /// <summary>
-    /// Selects the IKeyProtectorFactory implementation via CryptoComponentRegistry, used only to
-    /// protect an ephemeral key's own freshly generated material - unused (and not validated)
-    /// unless EphemeralKeys is non-empty. Defaults to "Default".
-    /// </summary>
-    public string KeyProtectorFactory { get; set; } = "Default";
 
     /// <summary>
     /// Every independently-protected key file to register into the built KeyRing.

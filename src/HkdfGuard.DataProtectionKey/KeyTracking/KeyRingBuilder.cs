@@ -14,8 +14,8 @@ namespace HkdfGuard.DataProtectionKey.KeyTracking;
 /// Build runs. Nothing here ever holds a version's key unwrapped - each IDataProtectionKey
 /// derives/reveals it fresh on every operation. AddEphemeralKey registers a version whose own key
 /// material is instead generated fresh in memory on first use (see EphemeralDataProtectionKey) -
-/// requires WithKeyProtectorFactory too, since protecting that freshly generated key is a
-/// separate concern from revealing an already-protected one.
+/// protecting that freshly generated key happens automatically via a KeyProtector constructed
+/// directly from the same recipe's IKeySpec, so no extra factory needs registering for it.
 /// </summary>
 public sealed class KeyRingBuilder
 {
@@ -23,9 +23,8 @@ public sealed class KeyRingBuilder
     private readonly List<(int Version, int MaterialIdentifier, int Iterations)> _ephemeralVersions = [];
     private ICryptoRecipeBuilder? _recipeBuilder;
     private IKeyWrapperFactory? _keyWrapperFactory;
-    private IKeyProtectorFactory? _keyProtectorFactory;
     private IEncryptedFormatProvider _formatProvider = new DefaultFormatProvider();
-    private KeyBlobSpec _blobSpec = new(saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
+    private KeyBlobSpec _blobSpec = new(saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 64);
 
     /// <summary>
     /// Supplies the ICryptoRecipeBuilder used to build a per-file IKeySpec when Build runs. Its
@@ -48,18 +47,8 @@ public sealed class KeyRingBuilder
     }
 
     /// <summary>
-    /// Supplies the IKeyProtectorFactory used to protect each ephemeral key's freshly generated
-    /// material. Only required when AddEphemeralKey is used at least once.
-    /// </summary>
-    public KeyRingBuilder WithKeyProtectorFactory(IKeyProtectorFactory keyProtectorFactory)
-    {
-        _keyProtectorFactory = keyProtectorFactory;
-        return this;
-    }
-
-    /// <summary>
     /// Describes each key file's on-disk field layout. Defaults to the layout
-    /// HkdfGuard.Initializer produces (64/32/60/32 byte Salt/EncryptedKeySalt/
+    /// HkdfGuard.Initializer produces (64/32/60/64 byte Salt/EncryptedKeySalt/
     /// EncryptedKeyValue/Signature fields) - only override this if the key files were protected
     /// with a different KeyBlobSpec.
     /// </summary>
@@ -117,7 +106,7 @@ public sealed class KeyRingBuilder
     /// Reads, verifies, and wraps each registered key file - and mints each registered ephemeral
     /// key - returning a populated KeyRing.
     /// </summary>
-    /// <exception cref="InvalidOperationException">No crypto recipe or key wrapper factory was configured, or an ephemeral key was registered without a key protector factory</exception>
+    /// <exception cref="InvalidOperationException">No crypto recipe or key wrapper factory was configured</exception>
     /// <exception cref="CryptographicException">A key file failed signature verification</exception>
     public KeyRing Build()
     {
@@ -126,9 +115,6 @@ public sealed class KeyRingBuilder
 
         if (_keyWrapperFactory is null)
             throw new InvalidOperationException("A key wrapper factory is required - call WithKeyWrapperFactory first.");
-
-        if (_ephemeralVersions.Count > 0 && _keyProtectorFactory is null)
-            throw new InvalidOperationException("A key protector factory is required to register an ephemeral key - call WithKeyProtectorFactory first.");
 
         var ring = new KeyRing(_formatProvider);
         foreach (var (version, path, materialIdentifier, iterations) in _versionFiles)
@@ -153,7 +139,7 @@ public sealed class KeyRingBuilder
                 .WithIterations(iterations)
                 .Build();
 
-            ring.Add(version, new EphemeralDataProtectionKey(keySpec, _keyWrapperFactory, _keyProtectorFactory!, _blobSpec));
+            ring.Add(version, new EphemeralDataProtectionKey(keySpec, _keyWrapperFactory, _blobSpec));
         }
 
         return ring;

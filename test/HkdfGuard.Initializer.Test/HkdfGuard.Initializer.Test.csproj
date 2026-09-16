@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\HkdfGuard.Initializer\HkdfGuard.Initializer.csproj" />
+    <ProjectReference Include="..\..\src\HkdfGuard.Core\HkdfGuard.Core.csproj" />
+    <ProjectReference Include="..\..\src\HkdfGuard.Abstractions\HkdfGuard.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

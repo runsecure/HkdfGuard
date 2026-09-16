@@ -8,6 +8,7 @@ namespace HkdfGuard.Core.Cryptography;
 
 public class Pbkdf2KeyDerivationFunction(IKeyInputStorage storage) : IKeyDerivationFunction
 {
+    /// <inheritdoc/>
     public int Derive(ReadOnlySpan<byte> uniqueBytes, ReadOnlySpan<byte> salt, int materialIdentifier, int iterations,
         string serviceName, scoped Span<byte> result)
     {
@@ -45,7 +46,7 @@ public class Pbkdf2KeyDerivationFunction(IKeyInputStorage storage) : IKeyDerivat
     private int DeriveCore(ReadOnlySpan<byte> keyMaterial, ReadOnlySpan<byte> salt, 
         int iterations, scoped Span<byte> result)
     {
-        Rfc2898DeriveBytes.Pbkdf2(keyMaterial, salt, result, iterations, HashAlgorithmName.SHA256);
+        Rfc2898DeriveBytes.Pbkdf2(keyMaterial, salt, result, iterations, HashAlgorithmName.SHA512);
         return result.Length;
     }
 }

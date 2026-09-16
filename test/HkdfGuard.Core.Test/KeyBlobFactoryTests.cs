@@ -10,8 +10,7 @@ public class KeyBlobFactoryTests
 {
     private const string ServiceName = "svc";
     private static readonly KeyBlobSpec BlobSpec = new(
-        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
-    private static readonly IKeyProtectorFactory KeyProtectorFactory = new KeyProtectorFactory();
+        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 64);
 
     private static IKeySpec CreateKeySpec(
         IKeyInputStorage storage, int materialIdentifier = 1, int iterations = 1, string serviceName = ServiceName)
@@ -19,7 +18,7 @@ public class KeyBlobFactoryTests
             .WithServiceName(serviceName)
             .WithKeyDerivation(new Pbkdf2KeyDerivationFunction(storage))
             .WithCipher(new AesGcmCipher())
-            .WithHash(new HmacSha256Hash())
+            .WithHash(new HmacSha512Hash())
             .WithMaterialIdentifier(materialIdentifier)
             .WithIterations(iterations)
             .Build();
@@ -27,7 +26,7 @@ public class KeyBlobFactoryTests
     private static byte[] CreateSignedBlobBytes(IKeySpec keySpec)
     {
         var salt = RandomNumberGenerator.GetBytes(BlobSpec.SaltLength);
-        var protector = KeyProtectorFactory.Create(keySpec, salt);
+        var protector = new KeyProtector(keySpec, salt);
         var plaintextKey = RandomNumberGenerator.GetBytes(32);
 
         var blob = KeyBlobFactory.Create(plaintextKey, protector, keySpec, BlobSpec, salt);
@@ -139,7 +138,7 @@ public class KeyBlobFactoryTests
     {
         var keySpec = CreateKeySpec(new InMemoryKeyInputStorage());
         var salt = RandomNumberGenerator.GetBytes(BlobSpec.SaltLength);
-        var protector = KeyProtectorFactory.Create(keySpec, salt);
+        var protector = new KeyProtector(keySpec, salt);
 
         Assert.Throws<ArgumentException>(() =>
             KeyBlobFactory.Create(RandomNumberGenerator.GetBytes(16), protector, keySpec, BlobSpec, salt));
@@ -150,7 +149,7 @@ public class KeyBlobFactoryTests
     {
         var keySpec = CreateKeySpec(new InMemoryKeyInputStorage());
         var salt = RandomNumberGenerator.GetBytes(BlobSpec.SaltLength);
-        var protector = KeyProtectorFactory.Create(keySpec, salt);
+        var protector = new KeyProtector(keySpec, salt);
 
         Assert.Throws<ArgumentException>(() =>
             KeyBlobFactory.Create(RandomNumberGenerator.GetBytes(32), protector, keySpec, BlobSpec, RandomNumberGenerator.GetBytes(16)));
@@ -175,7 +174,7 @@ public class KeyBlobFactoryTests
             saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 0);
         var keySpec = CreateKeySpec(new InMemoryKeyInputStorage());
         var salt = RandomNumberGenerator.GetBytes(unsignedSpec.SaltLength);
-        var protector = KeyProtectorFactory.Create(keySpec, salt);
+        var protector = new KeyProtector(keySpec, salt);
         var plaintextKey = RandomNumberGenerator.GetBytes(32);
 
         var blob = KeyBlobFactory.Create(plaintextKey, protector, keySpec, unsignedSpec, salt);

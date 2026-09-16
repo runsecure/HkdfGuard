@@ -10,16 +10,15 @@ public class HkdfKeyWrapperTests
 {
     private const string ServiceName = "svc";
     private static readonly KeyBlobSpec BlobSpec = new(
-        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
+        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 64);
     private static readonly IKeyWrapperFactory KeyWrapperFactory = new HkdfKeyWrapperFactory();
-    private static readonly IKeyProtectorFactory KeyProtectorFactory = new KeyProtectorFactory();
 
     private static IKeySpec CreateKeySpec()
         => new CryptoRecipeBuilder()
             .WithServiceName(ServiceName)
             .WithKeyDerivation(new Pbkdf2KeyDerivationFunction(new InMemoryKeyInputStorage()))
             .WithCipher(new AesGcmCipher())
-            .WithHash(new HmacSha256Hash())
+            .WithHash(new HmacSha512Hash())
             .WithMaterialIdentifier(1)
             .WithIterations(1)
             .Build();
@@ -29,7 +28,7 @@ public class HkdfKeyWrapperTests
     private static IKeyBlob CreateValidatedBlob(IKeySpec keySpec, byte[] plaintextKey)
     {
         var salt = RandomNumberGenerator.GetBytes(BlobSpec.SaltLength);
-        var protector = KeyProtectorFactory.Create(keySpec, salt);
+        var protector = new KeyProtector(keySpec, salt);
 
         var blob = KeyBlobFactory.Create(plaintextKey, protector, keySpec, BlobSpec, salt);
         var blobBytes = new byte[BlobSpec.TotalLength];
@@ -63,7 +62,7 @@ public class HkdfKeyWrapperTests
     {
         var keySpec = CreateKeySpec();
         var salt = RandomNumberGenerator.GetBytes(BlobSpec.SaltLength);
-        var protector = KeyProtectorFactory.Create(keySpec, salt);
+        var protector = new KeyProtector(keySpec, salt);
 
         // Wraps with a specific AAD, exactly as KeyBlobFactory.Create does when protecting a
         // key - the only IKeyProtector.Encrypt call anything in this codebase actually makes.

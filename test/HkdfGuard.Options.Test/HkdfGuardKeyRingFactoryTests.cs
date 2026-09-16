@@ -11,7 +11,7 @@ public class HkdfGuardKeyRingFactoryTests
 {
     private const string ServiceName = "config-factory-test-svc";
     private static readonly KeyBlobSpec BlobSpec = new(
-        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 32);
+        saltLength: 64, encryptedKeySaltLength: 32, encryptedKeyValueLength: 60, signatureLength: 64);
 
     // Every test drives real KeyBlobFactory/KeyRingBuilder/HkdfKeyWrapper code paths, but replaces
     // the "Pbkdf2" registry entry with one backed by InMemoryKeyInputStorage, so nothing here ever
@@ -28,7 +28,7 @@ public class HkdfGuardKeyRingFactoryTests
             .WithServiceName(ServiceName)
             .WithKeyDerivation(new Pbkdf2KeyDerivationFunction(storage))
             .WithCipher(new AesGcmCipher())
-            .WithHash(new HmacSha256Hash())
+            .WithHash(new HmacSha512Hash())
             .WithMaterialIdentifier(materialIdentifier)
             .WithIterations(iterations)
             .Build();
@@ -36,7 +36,7 @@ public class HkdfGuardKeyRingFactoryTests
     private static string ProtectKeyFile(TempDirectory tempDir, string fileName, IKeySpec spec)
     {
         var salt = RandomNumberGenerator.GetBytes(BlobSpec.SaltLength);
-        var protector = new KeyProtectorFactory().Create(spec, salt);
+        var protector = new KeyProtector(spec, salt);
         var plaintextKey = RandomNumberGenerator.GetBytes(32);
 
         var blob = KeyBlobFactory.Create((byte[])plaintextKey.Clone(), protector, spec, BlobSpec, salt);
@@ -221,37 +221,6 @@ public class HkdfGuardKeyRingFactoryTests
         var ring = new HkdfGuardKeyRingFactory(CreateInMemoryRegistry(storage)).Build(options);
 
         Assert.Equal(2, ring.CurrentVersion);
-    }
-
-    [Fact]
-    public void Build_WithUnknownKeyProtectorFactoryName_ThrowsNotSupportedException()
-    {
-        var options = new HkdfGuardOptions
-        {
-            ServiceName = ServiceName,
-            KeyProtectorFactory = "NotARealProtector",
-            EphemeralKeys = { new EphemeralKeyOptions { Version = 1, MaterialIdentifier = 1, Iterations = 1 } }
-        };
-
-        var ex = Assert.Throws<NotSupportedException>(() => new HkdfGuardKeyRingFactory().Build(options));
-        Assert.Contains("NotARealProtector", ex.Message);
-    }
-
-    [Fact]
-    public void Build_WithNoEphemeralKeys_NeverResolvesKeyProtectorFactory()
-    {
-        // KeyProtectorFactory defaults to "Default", which is always registered - if Build ever
-        // resolved it unconditionally, this would still pass. Configuring an unknown name proves
-        // it's only resolved when EphemeralKeys is actually non-empty.
-        var options = new HkdfGuardOptions
-        {
-            ServiceName = ServiceName,
-            KeyProtectorFactory = "NotARealProtector"
-        };
-
-        var ring = new HkdfGuardKeyRingFactory().Build(options);
-
-        Assert.Throws<InvalidOperationException>(() => ring.CurrentVersion);
     }
 
     [Fact]
