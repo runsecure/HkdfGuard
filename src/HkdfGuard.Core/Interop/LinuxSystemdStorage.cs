@@ -8,7 +8,11 @@ namespace HkdfGuard.Core.Interop;
 
 internal class LinuxSystemdStorage(string credsDir = "/run/credentials") : IKeyInputStorage
 {
-    private const int KEY_SPEC_PROCESS_KEYRING = -2;
+    // The process keyring dies with the process that created it, which defeats the point of
+    // durable key-material storage (every fresh invocation would regenerate it). The user
+    // keyring is scoped to the UID instead, so it survives across separate process runs the
+    // same way a macOS Keychain or Windows Credential Manager entry does.
+    private const int KEY_SPEC_USER_KEYRING = -4;
         
     public int CreateOrGet(string index, scoped Span<byte> material)
     {
@@ -49,7 +53,7 @@ internal class LinuxSystemdStorage(string credsDir = "/run/credentials") : IKeyI
         {
             fixed (byte* p = keyMaterial)
             {
-                var keyId = add_key_span("user", index, p, keyMaterial.Length, KEY_SPEC_PROCESS_KEYRING);
+                var keyId = add_key_span("user", index, p, keyMaterial.Length, KEY_SPEC_USER_KEYRING);
                 if (keyId < 0)
                     throw new Exception($"add_key failed: {Marshal.GetLastWin32Error()}");
 
